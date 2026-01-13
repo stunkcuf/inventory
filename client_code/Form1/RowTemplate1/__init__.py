@@ -4,17 +4,16 @@ import anvil.server
 
 class RowTemplate1(RowTemplate1Template):
   def __init__(self, **properties):
+    # This initializes the row and fills it with your Data Table info
     self.init_components(**properties)
 
-  @handle("button_delete", "click")
   def button_delete_click(self, **event_args):
-    """This runs when the trash can next to an item is clicked"""
+    """The Trash Can Button on the specific Row"""
     product_name = self.item['product_name']
 
-    # 1. Ask the user to be sure
-    if confirm(f"Permanently delete {product_name}?"):
-      # 2. Call the server to remove from database
+    # confirm() creates a mobile-friendly popup
+    if confirm(f"Are you sure you want to permanently delete {product_name}?"):
       anvil.server.call('delete_product_logic', product_name)
 
-      # 3. Tell the main form to refresh the list so it disappears
+      # This tells the main screen to refresh the list
       get_open_form().refresh_inventory()

@@ -15,7 +15,7 @@ components:
   - event_bindings: {}
     layout_properties: {}
     name: button_2
-    properties: {text: Add/ Remove Product}
+    properties: {text: Add Product}
     type: Button
   - event_bindings: {}
     layout_properties: {}
@@ -26,6 +26,11 @@ components:
   name: flow_panel_1
   properties: {}
   type: FlowPanel
+- event_bindings: {}
+  layout_properties: {slot: title}
+  name: text_box_1
+  properties: {}
+  type: TextBox
 container:
   properties: {html: '@theme:standard-page.html'}
   type: HtmlTemplate
