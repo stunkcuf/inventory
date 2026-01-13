@@ -1,11 +1,32 @@
 components:
-- components: []
+- components:
+  - name: repeating_panel_1
+    properties: {item_template: Form1.RowTemplate1}
+    type: RepeatingPanel
   layout_properties: {slot: default}
-  name: content_panel
-  properties: {col_widths: '{}'}
-  type: ColumnPanel
-- layout_properties: {slot: nav-right}
-  name: navbar_links
+  name: data_grid_1
+  properties:
+    columns:
+    - {data_key: product_name, id: JKSDUP, title: Product}
+    - {data_key: description, id: VJQQOR, title: Description}
+    - {data_key: stock, id: OJLQEN, title: Stock}
+  type: DataGrid
+- components:
+  - event_bindings: {}
+    layout_properties: {}
+    name: button_1
+    properties: {align: center, background: '', text: Update Stock}
+    type: Button
+  - data_bindings:
+    - {code: Add/Delete Product, property: text, writeback: false}
+    - {code: self.button_2, property: tag, writeback: false}
+    event_bindings: {}
+    layout_properties: {}
+    name: button_2
+    properties: {align: center, background: 'theme:On Background', enabled: true, text: Add/Delete Product, visible: true}
+    type: Button
+  layout_properties: {slot: nav-right}
+  name: flow_panel_1
   properties: {}
   type: FlowPanel
 container:
