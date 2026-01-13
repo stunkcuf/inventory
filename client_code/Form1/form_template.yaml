@@ -1,17 +1,5 @@
 components:
 - components:
-  - name: repeating_panel_1
-    properties: {item_template: Form1.RowTemplate1}
-    type: RepeatingPanel
-  layout_properties: {slot: default}
-  name: data_grid_1
-  properties:
-    columns:
-    - {data_key: product_name, id: JKSDUP, title: Product}
-    - {data_key: description, id: VJQQOR, title: Description}
-    - {data_key: stock, id: OJLQEN, title: Stock}
-  type: DataGrid
-- components:
   - event_bindings: {}
     layout_properties: {}
     name: button_2
@@ -26,11 +14,38 @@ components:
   name: flow_panel_1
   properties: {}
   type: FlowPanel
-- event_bindings: {}
-  layout_properties: {slot: title}
-  name: text_box_1
-  properties: {}
-  type: TextBox
+- components:
+  - components:
+    - data_bindings: []
+      event_bindings: {}
+      layout_properties: {grid_position: 'HXIKTY,CJQDDU'}
+      name: text_box_search
+      properties: {placeholder: 🔍 Search products...}
+      type: TextBox
+    layout_properties: {grid_position: 'VJKVVO,RPGIKO'}
+    name: outlined_card_2
+    properties: {role: outlined-card}
+    type: ColumnPanel
+  - components:
+    - name: repeating_panel_1
+      properties: {item_template: Form1.RowTemplate1}
+      type: RepeatingPanel
+    layout_properties: {grid_position: 'TUPWZN,CFOOBY'}
+    name: data_grid_1
+    properties:
+      columns:
+      - {data_key: product_name, id: JKSDUP, title: Product}
+      - {data_key: description, id: VJQQOR, title: Description}
+      - {data_key: stock, id: OJLQEN, title: Stock}
+    type: DataGrid
+  layout_properties: {slot: default}
+  name: outlined_card_1
+  properties: {role: outlined-card}
+  type: ColumnPanel
+- layout_properties: {slot: title}
+  name: label_1
+  properties: {text: Inventory}
+  type: Label
 container:
   properties: {html: '@theme:standard-page.html'}
   type: HtmlTemplate

@@ -2,7 +2,7 @@ components:
 - event_bindings: {}
   layout_properties: {}
   name: button_delete
-  properties: {align: right, icon: 'fa:trash', text: '', visible: true}
+  properties: {align: right, background: '', icon: 'fa:trash', text: '', visible: true}
   type: Button
 container: {type: DataRowPanel}
 is_package: true
