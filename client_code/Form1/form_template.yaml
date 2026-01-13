@@ -3,12 +3,12 @@ components:
   - event_bindings: {}
     layout_properties: {}
     name: button_2
-    properties: {text: Add Product}
+    properties: {background: 'theme:Primary Container', text: Add Product}
     type: Button
   - event_bindings: {}
     layout_properties: {}
     name: button_1
-    properties: {text: update stock}
+    properties: {background: 'theme:Primary Container', text: update stock}
     type: Button
   layout_properties: {slot: nav-right}
   name: flow_panel_1

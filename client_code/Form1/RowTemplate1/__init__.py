@@ -4,16 +4,36 @@ import anvil.server
 
 class RowTemplate1(RowTemplate1Template):
   def __init__(self, **properties):
-    # This initializes the row and fills it with your Data Table info
     self.init_components(**properties)
+    self.update_ui()
 
-  def button_delete_click(self, **event_args):
-    """The Trash Can Button on the specific Row"""
-    product_name = self.item['product_name']
+  def update_ui(self):
+    """Updates the stock label text and color"""
+    # Use 0 if the database value is empty
+    val = self.item['stock'] if self.item['stock'] is not None else 0
 
-    # confirm() creates a mobile-friendly popup
-    if confirm(f"Are you sure you want to permanently delete {product_name}?"):
-      anvil.server.call('delete_product_logic', product_name)
+    # This matches the name 'label_stock' you set in Step 1
+    self.label_stock.text = str(val)
 
-      # This tells the main screen to refresh the list
-      get_open_form().refresh_inventory()
+    # Mobile-friendly low stock warning
+    if val < 5:
+      self.label_stock.foreground = "#ff0000"
+      self.label_stock.bold = True
+    else:
+      self.label_stock.foreground = ""
+      self.label_stock.bold = False
+
+  def button_plus_click(self, **event_args):
+    """Triggered by the plus button event"""
+    anvil.server.call('update_stock_logic', self.item['product_name'], 1)
+    self.item['stock'] += 1
+    self.update_ui()
+
+  def button_minus_click(self, **event_args):
+    """Triggered by the minus button event"""
+    if self.item['stock'] > 0:
+      anvil.server.call('update_stock_logic', self.item['product_name'], -1)
+      self.item['stock'] -= 1
+      self.update_ui()
+    else:
+      Notification("Stock is already 0").show()

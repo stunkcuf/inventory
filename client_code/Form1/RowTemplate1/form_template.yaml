@@ -2,7 +2,20 @@ components:
 - event_bindings: {}
   layout_properties: {}
   name: button_delete
-  properties: {align: right, background: '', icon: 'fa:trash', text: '', visible: true}
+  properties: {align: right, background: 'theme:Primary Container', icon: 'fa:trash', text: '', visible: true}
+  type: Button
+- event_bindings: {}
+  layout_properties: {column: 'null'}
+  name: button_minus
+  properties:
+    icon: fa:minus
+    text: |2+
+
+  type: Button
+- event_bindings: {}
+  layout_properties: {column: 'null'}
+  name: button_plus
+  properties: {icon: 'fa:plus', text: ''}
   type: Button
 container: {type: DataRowPanel}
 is_package: true

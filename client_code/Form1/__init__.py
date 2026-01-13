@@ -31,6 +31,7 @@ class Form1(Form1Template):
     """This triggers when you hit 'Enter' or 'Search' on mobile"""
     self.refresh_inventory(self.text_box_search.text)
 
+  @handle("button_1", "click")
   def button_1_click(self, **event_args):
     """Update Stock Popup"""
     product_names = [row['product_name'] for row in app_tables.inventory.search()]
@@ -48,6 +49,7 @@ class Form1(Form1Template):
         self.refresh_inventory()
         Notification(res).show()
 
+  @handle("button_2", "click")
   def button_2_click(self, **event_args):
     """Add Product Popup"""
     n_box = TextBox(placeholder="Name")
