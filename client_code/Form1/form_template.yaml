@@ -14,16 +14,13 @@ components:
 - components:
   - event_bindings: {}
     layout_properties: {}
-    name: button_1
-    properties: {align: center, background: '', text: Update Stock}
-    type: Button
-  - data_bindings:
-    - {code: Add/Delete Product, property: text, writeback: false}
-    - {code: self.button_2, property: tag, writeback: false}
-    event_bindings: {}
-    layout_properties: {}
     name: button_2
-    properties: {align: center, background: 'theme:On Background', enabled: true, text: Add/Delete Product, visible: true}
+    properties: {text: Add/ Remove Product}
+    type: Button
+  - event_bindings: {}
+    layout_properties: {}
+    name: button_1
+    properties: {text: update stock}
     type: Button
   layout_properties: {slot: nav-right}
   name: flow_panel_1
