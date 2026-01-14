@@ -1,5 +1,11 @@
 components:
 - components:
+  - event_bindings: {change: drop_down_filter_change}
+    layout_properties: {}
+    name: drop_down_filter
+    properties:
+      items: ['["All", "Office", "Center"]']
+    type: DropDown
   - event_bindings: {click: button_add_click}
     layout_properties: {}
     name: button_add
@@ -7,7 +13,7 @@ components:
     type: Button
   - event_bindings: {click: button_update_stock_click}
     layout_properties: {}
-    name: button_1
+    name: button_update_stock
     properties: {background: 'theme:Primary Container', text: update stock}
     type: Button
   layout_properties: {slot: nav-right}
@@ -15,9 +21,14 @@ components:
   properties: {}
   type: FlowPanel
 - components:
+  - event_bindings: {}
+    layout_properties: {grid_position: 'EXBDOK,XMBKND'}
+    name: button_sync_files
+    properties: {text: add CSV, visible: false}
+    type: Button
   - components:
     - data_bindings: []
-      event_bindings: {}
+      event_bindings: {change: text_box_search_change}
       layout_properties: {grid_position: 'HXIKTY,CJQDDU'}
       name: text_box_search
       properties: {placeholder: 🔍 Search products...}
@@ -27,16 +38,19 @@ components:
     properties: {role: outlined-card}
     type: ColumnPanel
   - components:
-    - name: repeating_panel_1
-      properties: {item_template: Form1.RowTemplate1}
+    - layout_properties: {}
+      name: repeating_panel_1
+      properties: {item_template: Form1.RowTemplate1, visible: true}
       type: RepeatingPanel
-    layout_properties: {grid_position: 'TUPWZN,CFOOBY'}
+    layout_properties: {grid_position: 'YMXZSE,ITBKDW'}
     name: data_grid_1
     properties:
       columns:
-      - {data_key: product_name, id: JKSDUP, title: Product}
-      - {data_key: description, id: VJQQOR, title: Description}
-      - {data_key: stock, id: OJLQEN, title: Stock}
+      - {data_key: label_name, expand: false, id: JKSDUP, title: Product, width: 148}
+      - {data_key: label_desc, expand: false, id: VJQQOR, title: Desc./Notes, width: 240}
+      - {data_key: label_to_order, expand: false, id: EQXIKO, title: To Order, width: 124}
+      - {data_key: label_stock, expand: false, id: OJLQEN, title: Stock, width: 93}
+      - {data_key: blank, expand: false, id: ERQGGF, title: '', width: 145}
     type: DataGrid
   layout_properties: {slot: default}
   name: outlined_card_1

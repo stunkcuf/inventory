@@ -1,6 +1,5 @@
 from ._anvil_designer import RowTemplate1Template
 from anvil import *
-import anvil.server
 
 class RowTemplate1(RowTemplate1Template):
   def __init__(self, **properties):
@@ -8,23 +7,41 @@ class RowTemplate1(RowTemplate1Template):
     self.update_ui()
 
   def update_ui(self):
-    stock = self.item['stock'] or 0
-    self.label_name.text = self.item['product_name']
-    self.label_desc.text = self.item['description']
-    self.label_stock.text = str(stock)
-    self.label_stock.foreground = "#ff0000" if stock < 5 else ""
+    row = self.item
+
+    # 1. Item Name
+    if hasattr(self, 'label_name'):
+      self.label_name.text = row['Item']
+
+    # 2. Description (Pulling specifically from 'Notes' column)
+    if hasattr(self, 'label_desc'):
+      # We use row['Notes'] because that is the column name in your Data Table
+      # If row['Notes'] is None or empty, we show a dash
+      db_notes = row['Notes']
+      self.label_desc.text = db_notes if db_notes else "-"
+
+    # 3. Stock Level
+    if hasattr(self, 'label_stock'):
+      self.label_stock.text = str(row['On_Hand'])
+
+    # 4. Order Logic
+    if hasattr(self, 'label_to_order'):
+      qty = row['To_Order'] or 0
+      self.label_to_order.text = str(qty) if qty > 0 else "-"
+      self.label_to_order.foreground = "red" if qty > 0 else "gray"
 
   def button_plus_click(self, **event_args):
-    self.item['stock'] = anvil.server.call('update_stock_logic', self.item['product_name'], 1)
+    self.item['On_Hand'] += 1
+    self.item['To_Order'] = max(0, (self.item['Minimum_Amt'] or 0) - self.item['On_Hand'])
     self.update_ui()
 
   def button_minus_click(self, **event_args):
-    if self.item['stock'] > 0:
-      self.item['stock'] = anvil.server.call('update_stock_logic', self.item['product_name'], -1)
+    if self.item['On_Hand'] > 0:
+      self.item['On_Hand'] -= 1
+      self.item['To_Order'] = max(0, (self.item['Minimum_Amt'] or 0) - self.item['On_Hand'])
       self.update_ui()
 
-  @handle("button_delete", "click")
   def button_delete_click(self, **event_args):
-    if confirm(f"Delete {self.item['product_name']}?"):
-      anvil.server.call('delete_product_logic', self.item['product_name'])
-      get_open_form().refresh_inventory()
+    if confirm(f"Delete {self.item['Item']}?"):
+      self.item.delete()
+      self.remove_from_parent()

@@ -6,7 +6,7 @@ db_schema:
     - admin_ui: {order: 0, width: 200}
       name: path
       type: string
-    - admin_ui: {order: 1, width: 200}
+    - admin_ui: {order: 1, width: 360}
       name: file
       type: media
     - admin_ui: {order: 2, width: 200}
@@ -17,17 +17,23 @@ db_schema:
   inventory:
     client: full
     columns:
-    - admin_ui: {order: 0, width: 200}
-      name: product_name
+    - admin_ui: {order: 0, width: 123}
+      name: Item
       type: string
-    - admin_ui: {order: 1, width: 200}
-      name: description
-      type: string
-    - admin_ui: {order: 2, width: 200}
-      name: stock
+    - admin_ui: {order: 2, width: 125}
+      name: Minimum_Amt
       type: number
     - admin_ui: {order: 3, width: 200}
-      name: category
+      name: To_Order
+      type: number
+    - admin_ui: {order: 4, width: 200}
+      name: Notes
+      type: string
+    - admin_ui: {order: 5, width: 200}
+      name: Category
+      type: string
+    - admin_ui: {order: 1, width: 117}
+      name: On_Hand
       type: number
     server: full
     title: inventory
@@ -39,7 +45,9 @@ renamed: true
 runtime_options:
   client_version: '3'
   legacy_features: {bootstrap3: true, class_names: true}
-  server_spec: {base: python310-minimal}
+  server_spec: {base: python310-standard}
+  server_spec_disabled: {base: python310-minimal, requirements: ''}
+  server_version: python3-sandbox
   version: 3
 services:
 - client_config: {}
