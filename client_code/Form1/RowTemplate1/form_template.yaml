@@ -1,21 +1,49 @@
 components:
-- event_bindings: {}
-  layout_properties: {}
-  name: button_delete
-  properties: {align: right, background: 'theme:Primary Container', icon: 'fa:trash', text: '', visible: true}
-  type: Button
-- event_bindings: {}
-  layout_properties: {column: 'null'}
-  name: button_minus
-  properties:
-    icon: fa:minus
-    text: |2+
+- layout_properties: {column: JKSDUP}
+  name: label_name
+  properties: {align: left}
+  type: Label
+- layout_properties: {column: VJQQOR}
+  name: label_desc
+  properties: {align: left}
+  type: Label
+- layout_properties: {column: OJLQEN}
+  name: label_stock
+  properties: {align: left}
+  type: Label
+- components:
+  - components:
+    - event_bindings: {click: button_minus_click}
+      layout_properties: {}
+      name: button_minus
+      properties:
+        align: right
+        icon: fa:minus
+        text: |2+
 
-  type: Button
-- event_bindings: {}
-  layout_properties: {column: 'null'}
-  name: button_plus
-  properties: {icon: 'fa:plus', text: ''}
-  type: Button
+      type: Button
+    layout_properties: {grid_position: 'WILZZU,BBZTCM'}
+    name: flow_panel_1
+    properties: {}
+    type: FlowPanel
+  - components:
+    - event_bindings: {click: button_plus_click}
+      layout_properties: {}
+      name: button_plus
+      properties: {align: right, icon: 'fa:plus', text: ''}
+      type: Button
+    layout_properties: {grid_position: 'WILZZU,FKZWQX'}
+    name: flow_panel_2
+    properties: {}
+    type: FlowPanel
+  - event_bindings: {}
+    layout_properties: {grid_position: 'WILZZU,YOJFJJ'}
+    name: button_delete
+    properties: {align: right, background: 'theme:Primary Container', icon: 'fa:trash', text: '', visible: true}
+    type: Button
+  layout_properties: {column: OJLQEN}
+  name: column_panel_1
+  properties: {}
+  type: ColumnPanel
 container: {type: DataRowPanel}
 is_package: true

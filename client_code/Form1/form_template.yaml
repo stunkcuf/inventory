@@ -1,11 +1,11 @@
 components:
 - components:
-  - event_bindings: {}
+  - event_bindings: {click: button_add_click}
     layout_properties: {}
-    name: button_2
+    name: button_add
     properties: {background: 'theme:Primary Container', text: Add Product}
     type: Button
-  - event_bindings: {}
+  - event_bindings: {click: button_update_stock_click}
     layout_properties: {}
     name: button_1
     properties: {background: 'theme:Primary Container', text: update stock}
