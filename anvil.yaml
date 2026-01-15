@@ -1,5 +1,45 @@
 allow_embedding: false
 db_schema:
+  center_calcs:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: item
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: amount_each
+      type: number
+    - admin_ui: {order: 2, width: 200}
+      name: qty
+      type: number
+    - admin_ui: {order: 3, width: 200}
+      name: total
+      type: number
+    - admin_ui: {order: 4, width: 200}
+      name: notes
+      type: string
+    server: full
+    title: center_calcs
+  center_supplies:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: item
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: on_hand
+      type: number
+    - admin_ui: {order: 2, width: 200}
+      name: minimum_amt
+      type: number
+    - admin_ui: {order: 3, width: 200}
+      name: to_order
+      type: number
+    - admin_ui: {order: 4, width: 200}
+      name: notes
+      type: string
+    server: full
+    title: center_supplies
   files:
     client: full
     columns:
@@ -37,6 +77,26 @@ db_schema:
       type: number
     server: full
     title: inventory
+  inventory_summary_center:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: date_requested
+      type: date
+    - admin_ui: {order: 1, width: 200}
+      name: location_name
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: total_amt
+      type: number
+    - admin_ui: {order: 3, width: 200}
+      name: date_filled
+      type: date
+    - admin_ui: {order: 1.5, width: 200}
+      name: employee
+      type: string
+    server: full
+    title: inventory_summary_center
   inventory_summary_internal:
     client: none
     columns:
@@ -77,6 +137,49 @@ db_schema:
       type: date
     server: full
     title: inventory_summary_office
+  inventory_summary_total:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: date_requested
+      type: date
+    - admin_ui: {order: 1, width: 200}
+      name: location_name
+      type: string
+    - admin_ui: {order: 2, width: 200}
+      name: employee
+      type: string
+    - admin_ui: {order: 3, width: 200}
+      name: total_amt
+      type: number
+    - admin_ui: {order: 4, width: 200}
+      name: date_filled
+      type: date
+    server: full
+    title: inventory_summary_total
+  master_order_log:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: item
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: amount_each
+      type: number
+    - admin_ui: {order: 2, width: 200}
+      name: total
+      type: number
+    - admin_ui: {order: 3, width: 200}
+      name: employee
+      type: string
+    - admin_ui: {order: 4, width: 200}
+      name: location
+      type: string
+    - admin_ui: {order: 5, width: 200}
+      name: date
+      type: date
+    server: full
+    title: master_order_log
   office_calcs:
     client: none
     columns:
@@ -117,6 +220,20 @@ db_schema:
       type: string
     server: full
     title: office_supplies
+  wm_stock_history:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: item
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: check_date
+      type: date
+    - admin_ui: {order: 2, width: 200}
+      name: amount
+      type: number
+    server: full
+    title: wm_stock_history
 dependencies: []
 metadata: {logo_img: 'asset:Home Picture.png', title: AOC supplies}
 name: inventory
