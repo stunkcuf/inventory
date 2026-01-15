@@ -15,8 +15,6 @@ class RowTemplate1(RowTemplate1Template):
 
     # 2. Description (Pulling specifically from 'Notes' column)
     if hasattr(self, 'label_desc'):
-      # We use row['Notes'] because that is the column name in your Data Table
-      # If row['Notes'] is None or empty, we show a dash
       db_notes = row['Notes']
       self.label_desc.text = db_notes if db_notes else "-"
 
@@ -24,11 +22,20 @@ class RowTemplate1(RowTemplate1Template):
     if hasattr(self, 'label_stock'):
       self.label_stock.text = str(row['On_Hand'])
 
-    # 4. Order Logic
+    # 4. Order Logic & Visual Feedback
+    qty_to_order = row['To_Order'] or 0
     if hasattr(self, 'label_to_order'):
-      qty = row['To_Order'] or 0
-      self.label_to_order.text = str(qty) if qty > 0 else "-"
-      self.label_to_order.foreground = "red" if qty > 0 else "gray"
+      self.label_to_order.text = str(qty_to_order) if qty_to_order > 0 else "-"
+      self.label_to_order.foreground = "red" if qty_to_order > 0 else "gray"
+
+    # 5. Apply the Responsive CSS Role based on Stock Level
+    # This triggers the '.anvil-role-low-stock-row' style in your theme.css
+    if qty_to_order > 0:
+      self.role = 'low-stock-row'
+    else:
+      # If you aren't using the 'elevated-card' role on the RepeatingPanel, 
+      # you can change this to None or 'default'
+      self.role = 'elevated-card'
 
   def button_plus_click(self, **event_args):
     self.item['On_Hand'] += 1
