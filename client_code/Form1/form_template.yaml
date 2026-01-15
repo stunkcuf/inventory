@@ -19,7 +19,8 @@ components:
       name: flow_panel_2
       properties: {}
       type: FlowPanel
-    - layout_properties: {grid_position: 'VJKVVO,KVDACV FOTFKB,QEYXZP'}
+    - event_bindings: {}
+      layout_properties: {grid_position: 'VJKVVO,KVDACV FOTFKB,QEYXZP'}
       name: file_loader_1
       properties: {}
       type: FileLoader

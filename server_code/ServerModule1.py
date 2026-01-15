@@ -1,59 +1,134 @@
-import anvil.tables as tables
-from anvil.tables import app_tables
 import anvil.server
+import anvil.media
+import pandas as pd
+import numpy as np
 import io
-import csv
+from datetime import datetime
+from anvil.tables import app_tables
+
+def clean_val(val, target_type):
+  """
+    The ultimate cleaner. 
+    Handles the 'float NaN to integer' error by catching all null types first.
+    """
+  # 1. Use pandas' isna to catch None, NaN, and NaT (Not a Time)
+  if pd.isna(val):
+    return None
+
+  val_str = str(val).strip()
+  # 2. Catch strings that represent nulls
+  if val_str.lower() in ["nan", "none", "", "nat"]:
+    return None
+
+  try:
+    if target_type == 'number':
+      # Remove currency symbols, commas, and spaces
+      clean_num = val_str.replace('$', '').replace(',', '').replace(' ', '')
+      # Handle accounting 'dash' for zero
+      if clean_num == "-" or not clean_num:
+        return None
+      return float(clean_num)
+
+    elif target_type == 'date':
+      # If it's already a datetime object (common in Excel)
+      if isinstance(val, datetime):
+        return val.date()
+        # Otherwise, try to parse it
+      parsed_date = pd.to_datetime(val_str, errors='coerce')
+      return parsed_date.date() if not pd.isna(parsed_date) else None
+
+    return val_str # Default to string
+  except:
+    return None
 
 @anvil.server.callable
-def sync_data_files():
-  # 1. Clear the inventory table to start fresh
-  app_tables.inventory.delete_all_rows()
-  total_added = 0
+def import_master_inventory(file):
+  content = file.get_bytes()
+  all_sheets = pd.read_excel(io.BytesIO(content), sheet_name=None)
 
-  # 2. Get all rows from your 'Files' table
-  all_file_rows = app_tables.files.search()
+  SHEET_CONFIG = {
+    "2025-Summary-Internal": {
+      "table": app_tables.inventory_summary_internal,
+      "header_row": 0,
+      "columns": {
+        "Date Requested": ("date_requested", "date"),
+        "Location Name": ("location_name", "string"),
+        "Employee": ("employee", "string"),
+        "Total Amt": ("total_amt", "number"),
+        "Date Filled": ("date_filled", "date")
+      }
+    },
+    "2025-Summary-Office": {
+      "table": app_tables.inventory_summary_office,
+      "header_row": 0,
+      "columns": {
+        "Date Requested": ("date_requested", "date"),
+        "Location Name": ("location_name", "string"),
+        "Employee": ("employee", "string"),
+        "Total Amt": ("total_amt", "number"),
+        "Date Filled": ("date_filled", "date")
+      }
+    },
+    "OfficeSuppliesInventory": {
+      "table": app_tables.office_supplies,
+      "header_row": 0,
+      "columns": {
+        "Item": ("item", "string"),
+        "On Hand": ("on_hand", "number"),
+        "Minimum Amt": ("minimum_amt", "number"),
+        "To Order": ("to_order", "number"),
+        "Notes": ("notes", "string")
+      }
+    },
+    "OfficeSuppliesCalcs": {
+      "table": app_tables.office_calcs,
+      "header_row": 7, 
+      "columns": {
+        "Item": ("item", "string"),
+        "$ Amount/each": ("amount_each", "number"),
+        "Qty": ("qty", "number"),
+        "Total": ("total", "number"),
+        "Notes": ("notes", "string")
+      }
+    }
+  }
 
-  for row in all_file_rows:
-    csv_media = row['file'] # Assumes column name is 'file'
-    if csv_media:
-      file_name_text = csv_media.name or ""
+  messages = []
+  for sheet_name, config in SHEET_CONFIG.items():
+    if sheet_name in all_sheets:
+      try:
+        # Load the sheet
+        df = pd.read_excel(io.BytesIO(content), sheet_name=sheet_name, header=config['header_row'])
 
-      # Determine Category based on filename
-      category = ""
-      if "Center" in file_name_text: category = "Center"
-      elif "Office" in file_name_text: category = "Office"
+        # PRE-CLEAN: Strip header spaces and replace ALL NaNs with None immediately
+        df.columns = [str(c).strip() for c in df.columns]
+        df = df.replace({np.nan: None})
 
-      if category:
-        csv_bytes = csv_media.get_bytes()
-        csv_str = csv_bytes.decode('utf-8')
-        reader = csv.DictReader(io.StringIO(csv_str))
+        table = config['table']
+        col_map = config['columns']
+        rows_added = 0
 
-        for csv_row in reader:
-          item_name = csv_row.get('Item', '').strip()
-          if not item_name or item_name.endswith(':'): continue
+        for _, row in df.iterrows():
+          new_db_row = {}
+          has_real_data = False
 
-            # Extract numbers for stock and minimums
-          on_hand = 0
-          min_amt = 0
-          for k, v in csv_row.items():
-            k_low = k.lower()
-            if 'hand' in k_low: 
-              try: on_hand = int(float(v)) if v else 0
-              except: on_hand = 0
-            elif 'min' in k_low: 
-              try: min_amt = int(float(v)) if v else 0
-              except: min_amt = 0
+          for excel_col, (anvil_col, dtype) in col_map.items():
+            if excel_col in row:
+              cleaned = clean_val(row[excel_col], dtype)
+              new_db_row[anvil_col] = cleaned
+              # Mark that this row actually has content
+              if cleaned is not None:
+                has_real_data = True
 
-                # Map CSV Description/Notes to Table 'Notes' column
-          desc = csv_row.get('Description') or csv_row.get('Notes') or ""
+                # Only add if the row isn't just empty Excel padding
+          if has_real_data:
+            table.add_row(**new_db_row)
+            rows_added += 1
 
-          app_tables.inventory.add_row(
-            Item=item_name,
-            On_Hand=on_hand,
-            Minimum_Amt=min_amt,
-            To_Order=max(0, min_amt - on_hand),
-            Category=category,
-            Notes=desc.strip()
-          )
-          total_added += 1
-  return total_added
+        messages.append(f"✓ {sheet_name}: Imported {rows_added} rows")
+      except Exception as e:
+        messages.append(f"⚠ Error in {sheet_name}: {str(e)}")
+    else:
+      messages.append(f"× Sheet '{sheet_name}' not found.")
+
+  return "\n".join(messages)

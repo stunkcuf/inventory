@@ -111,3 +111,8 @@ class Form1(Form1Template):
   def text_box_search_pressed_enter(self, **event_args):
     """This method is called when the user presses Enter in this text box"""
     pass
+
+  @handle("file_loader_1", "change")
+  def file_loader_1_change(self, file, **event_args):
+    result = anvil.server.call('import_master_inventory', file)
+    alert(result)
