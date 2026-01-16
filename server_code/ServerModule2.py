@@ -2,35 +2,20 @@ import anvil.server
 from anvil.tables import app_tables
 import anvil.tables.query as q
 import anvil.tables as tables
-import pandas as pd
-import numpy as np
-import io                  # <--- This is built-in, no install needed!
-from datetime import datetime
 
 @anvil.server.callable
 def get_inventory_fast(category="All", search_query=None):
-  """Handles filtering and sorting on the server for speed."""
+  """Returns a live search object for fast, lazy-loading display."""
+  search_args = {}
 
-  # 1. Base query with sorting
-  # Note: Using your Capitalized column keys
-  if category == "All":
-    items = app_tables.inventory.search(tables.order_by("Item"))
-  else:
-    items = app_tables.inventory.search(tables.order_by("Item"), Category=category)
+  if category != "All":
+    search_args['Category'] = category
 
-    # 2. Add search query if provided
   if search_query and search_query.strip() != "":
-    # We re-run the search with the ilike operator for the search term
-    if category == "All":
-      items = app_tables.inventory.search(
-        tables.order_by("Item"),
-        Item=q.ilike(f"%{search_query}%")
-      )
-    else:
-      items = app_tables.inventory.search(
-        tables.order_by("Item"),
-        Item=q.ilike(f"%{search_query}%"),
-        Category=category
-      )
+    search_args['Item'] = q.ilike(f"%{search_query}%")
 
-  return items
+    # This allows Anvil to load rows only as the user scrolls
+  return app_tables.inventory.search(
+    tables.order_by("Item", ascending=True),
+    **search_args
+  )

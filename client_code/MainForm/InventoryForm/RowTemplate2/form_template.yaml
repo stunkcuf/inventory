@@ -31,7 +31,7 @@ components:
     properties: {text: ''}
     type: Label
   - components:
-    - event_bindings: {click: button_minus_click}
+    - event_bindings: {click: btn_minus_click}
       layout_properties: {}
       name: button_minus
       properties:
@@ -46,7 +46,7 @@ components:
     properties: {align: center}
     type: FlowPanel
   - components:
-    - event_bindings: {click: button_plus_click}
+    - event_bindings: {click: btn_plus_click}
       layout_properties: {}
       name: button_plus
       properties: {align: center, font_size: 15, icon: 'fa:plus', text: ''}
@@ -56,7 +56,7 @@ components:
     properties: {align: center, vertical_align: full}
     type: FlowPanel
   - components:
-    - event_bindings: {click: button_delete_click}
+    - event_bindings: {click: btn_delete_click}
       layout_properties: {}
       name: button_delete
       properties: {align: center, background: 'theme:Primary Container', font_size: 15, icon: 'fa:trash', text: '', visible: true}
