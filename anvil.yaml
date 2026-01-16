@@ -75,6 +75,9 @@ db_schema:
     - admin_ui: {order: 1, width: 117}
       name: On_Hand
       type: number
+    - admin_ui: {order: 6, width: 200}
+      name: Ordered
+      type: bool
     server: full
     title: inventory
   inventory_summary_center:
@@ -220,6 +223,23 @@ db_schema:
       type: string
     server: full
     title: office_supplies
+  summary_2025:
+    client: full
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: Location
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: Total_Cost
+      type: number
+    - admin_ui: {order: 2, width: 200}
+      name: Date
+      type: string
+    - admin_ui: {order: 3, width: 200}
+      name: Description
+      type: string
+    server: full
+    title: summary_2025
   wm_stock_history:
     client: none
     columns:

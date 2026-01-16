@@ -10,6 +10,8 @@ unique_ids:
     MainForm.AdminForm: '1768513770005204835017321.72217'
     MainForm.InventoryForm: '1768513698484645582004771.786'
     MainForm.InventoryForm.RowTemplate2: '1768514078273452337655212.6005'
+    MainForm.ShoppingListForm: '1768594492643745811307046.1282'
+    MainForm.ShoppingListForm.RowTemplate3: '1768594546529476747504468.2759'
     MainForm.SummaryForm: '1768513755212634650823003.8097'
   modules: {}
   scripts: {}

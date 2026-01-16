@@ -1,0 +1,24 @@
+components:
+- layout_properties: {column: JKSDUP}
+  name: label_1
+  properties: {text: 'self.item[''Item'']'}
+  type: Label
+- layout_properties: {column: VJQQOR}
+  name: label_2
+  properties: {text: 'self.item[''On_Hand'']'}
+  type: Label
+- layout_properties: {column: OJLQEN}
+  name: label_3
+  properties: {text: 'self.item[''Minimum_Amt'']'}
+  type: Label
+- layout_properties: {column: UCMSPS}
+  name: label_4
+  properties: {text: 'self.item[''To_Order'']'}
+  type: Label
+- event_bindings: {}
+  layout_properties: {column: RPTDMP}
+  name: check_box_1
+  properties: {checked: true, text: 'self.item[''Ordered'']'}
+  type: CheckBox
+container: {type: DataRowPanel}
+is_package: true

@@ -1,3 +1,13 @@
-components: []
+components:
+- event_bindings: {click: shopping_list_link_click}
+  layout_properties: {grid_position: 'ATBBFY,XXGLFF'}
+  name: ShoppingListForm
+  properties: {text: Shopping List}
+  type: Link
+- event_bindings: {change: file_loader_1_change}
+  layout_properties: {grid_position: 'ATBBFY,JHZGIM'}
+  name: file_loader_1
+  properties: {}
+  type: FileLoader
 container: {type: ColumnPanel}
 is_package: true

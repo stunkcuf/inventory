@@ -1,0 +1,29 @@
+components:
+- layout_properties: {grid_position: 'KNTNXQ,MEVMML'}
+  name: label_1
+  properties: {text: Items to Order}
+  type: Label
+- event_bindings: {click: print_button_click}
+  layout_properties: {grid_position: 'KNTNXQ,JVPRPD'}
+  name: print_button
+  properties: {text: Print}
+  type: Button
+- components:
+  - data_bindings: []
+    layout_properties: {}
+    name: repeating_panel_1
+    properties: {item_template: MainForm.ShoppingListForm.RowTemplate3}
+    type: RepeatingPanel
+  layout_properties: {grid_position: 'WWGRQK,MBACGD'}
+  name: data_grid_1
+  properties:
+    columns:
+    - {data_key: 'self.item[''Item'']', id: JKSDUP, title: Item}
+    - {data_key: 'self.item[''Category'']', id: VJQQOR, title: Category}
+    - {data_key: 'self.item[''On_Hand'']', id: OJLQEN, title: On Hand}
+    - {data_key: 'self.item[''Minimum_Amt'']', id: UCMSPS, title: Min Amt}
+    - {data_key: 'self.item[''Minimum_Amt''] - self.item[''On_Hand'']', id: RPTDMP, title: Need to Order}
+    - {data_key: Checkbox, expand: false, id: GKBOAZ, title: Ordered}
+  type: DataGrid
+container: {type: ColumnPanel}
+is_package: true
