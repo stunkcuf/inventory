@@ -4,20 +4,26 @@ db_schema:
     client: none
     columns:
     - admin_ui: {order: 0, width: 200}
-      name: item
+      name: Item
       type: string
     - admin_ui: {order: 1, width: 200}
-      name: amount_each
+      name: Price
       type: number
     - admin_ui: {order: 2, width: 200}
-      name: qty
+      name: On_Hand
       type: number
     - admin_ui: {order: 3, width: 200}
-      name: total
-      type: number
-    - admin_ui: {order: 4, width: 200}
-      name: notes
+      name: Category
       type: string
+    - admin_ui: {order: 4, width: 200}
+      name: Item_Link
+      type: string
+    - admin_ui: {order: 5, width: 200}
+      name: Notes
+      type: string
+    - admin_ui: {order: 6, width: 200}
+      name: Ordered
+      type: bool
     server: full
     title: center_calcs
   center_supplies:
@@ -75,9 +81,6 @@ db_schema:
     - admin_ui: {order: 1, width: 117}
       name: On_Hand
       type: number
-    - admin_ui: {order: 6, width: 200}
-      name: Ordered
-      type: bool
     server: full
     title: inventory
   inventory_summary_center:
@@ -187,20 +190,26 @@ db_schema:
     client: none
     columns:
     - admin_ui: {order: 0, width: 200}
-      name: item
+      name: Item
       type: string
     - admin_ui: {order: 1, width: 200}
-      name: amount_each
+      name: Price
       type: number
     - admin_ui: {order: 2, width: 200}
-      name: qty
+      name: On_Hand
       type: number
     - admin_ui: {order: 3, width: 200}
-      name: total
-      type: number
-    - admin_ui: {order: 4, width: 200}
-      name: notes
+      name: Category
       type: string
+    - admin_ui: {order: 4, width: 200}
+      name: Item_Link
+      type: string
+    - admin_ui: {order: 5, width: 200}
+      name: Notes
+      type: string
+    - admin_ui: {order: 6, width: 200}
+      name: Ordered
+      type: bool
     server: full
     title: office_calcs
   office_supplies:

@@ -8,13 +8,10 @@ class ShoppingListForm(ShoppingListFormTemplate):
     self.refresh_list()
 
   def refresh_list(self):
-    self.repeating_panel_1.items = anvil.server.call('get_shopping_list')
+    # This calls the consolidated function from ServerModule2
+    items = anvil.server.call('get_shopping_list')
+    self.repeating_panel_1.items = items
 
-  def print_button_click(self, **event_args):
-    import anvil.js
-    anvil.js.window.print()
-
-  def btn_reset_click(self, **event_args):
-    if confirm("Reset all 'Ordered' checkboxes?"):
-      anvil.server.call('reset_ordered_status')
-      self.refresh_list()
+    # Check if label_empty exists before trying to use it
+    if hasattr(self, 'label_empty'):
+      self.label_empty.visible = len(items) == 0
