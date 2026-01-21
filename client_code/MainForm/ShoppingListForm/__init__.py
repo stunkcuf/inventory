@@ -20,3 +20,7 @@ class ShoppingListForm(ShoppingListFormTemplate):
   def btn_print_click(self, **event_args):
     import anvil.js
     anvil.js.window.print()
+
+  def print_button_click(self, **event_args):
+    """This method is called when the button is clicked"""
+    pass

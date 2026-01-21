@@ -9,6 +9,7 @@ import re
 from datetime import datetime
 import openpyxl
 
+
 # --- 1. HELPERS ---
 def clean_num(val):
   if val is None or val == "" or str(val).strip() == "0": return 0
@@ -95,8 +96,30 @@ def get_inventory_fast(category="All", search_query=None):
 
 @anvil.server.callable
 def get_spending_summary():
+  print("=== get_spending_summary called ===")
   data = app_tables.summary_2025.search()
-  results = [(r['Location'], r['Total_Cost']) for r in data]
+  print(f"Found {len(list(data))} rows in summary_2025")
+
+  # Re-search since we consumed the iterator
+  data = app_tables.summary_2025.search()
+
+  # Check what columns exist
+  if len(list(data)) > 0:
+    data = app_tables.summary_2025.search()
+    first_row = list(data)[0]
+    print(f"Available columns: {list(first_row.keys())}")
+    print(f"First row data: {dict(first_row)}")
+
+  # Re-search again and build results
+  data = app_tables.summary_2025.search()
+  results = []
+  for r in data:
+    location = r.get('Location') or r.get('Location Name') or r.get('Location #') or "Unknown"
+    total_cost = r.get('Total_Cost') or r.get('Total Amt') or r.get('Total_Amt') or 0
+    results.append((location, total_cost))
+    print(f"  {location}: ${total_cost}")
+
+  print(f"Returning {len(results)} results")
   return results if results else [("No Data", 0)]
 
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
@@ -120,16 +143,18 @@ def process_excel_import(file):
 
   for s in all_sheets:
     ls = s.lower()
-    if "summary" in ls: 
+    # Only process the main "2025-Summary" sheet (not the other summary sheets)
+    if s == "2025-Summary":
       target_assignments.append((s, "summary_2025"))
+      print(f"Assigning sheet '{s}' to table 'summary_2025'")
     # Look for "Calcs" sheets specifically (not "OrderForm")
-    if "calcs" in ls:
+    elif "calcs" in ls:
       table = "office_calcs" if "office" in ls else "center_calcs"
       target_assignments.append((s, table))
       print(f"Assigning sheet '{s}' to table '{table}' (URLS HERE)")
     # Also check for "master" sheets
     elif "master" in ls:
-      table = "center_calcs"  # or you can make this smarter
+      table = "center_calcs"
       target_assignments.append((s, table))
       print(f"Assigning sheet '{s}' to table '{table}'")
 
@@ -195,28 +220,11 @@ def process_excel_import(file):
       excel_row_num = idx + header_row_idx + 2
       extracted_url = None
 
-      # Debug: Check first 5 rows in detail - scan ALL columns to find where URLs are
-      if idx < 5:
-        print(f"  Checking item: {item_name} (Excel row {excel_row_num})")
-        max_col = ws.max_column if ws.max_column else 20
-        for test_col in range(1, min(max_col + 1, 15)):
-          try:
-            test_cell = ws.cell(row=excel_row_num, column=test_col)
-            if test_cell.value or (test_cell.hyperlink and test_cell.hyperlink.target):
-              cell_val_preview = str(test_cell.value)[:40] if test_cell.value else "empty"
-              has_hyperlink = "YES" if (test_cell.hyperlink and test_cell.hyperlink.target) else "no"
-              if has_hyperlink == "YES":
-                print(f"    Col {test_col}: HYPERLINK -> {test_cell.hyperlink.target}")
-              elif test_cell.value:
-                print(f"    Col {test_col}: '{cell_val_preview}'")
-          except:
-            pass
-
       # PRIORITY 1: Scan columns E through L (5-12) for URLs
       for col_num in range(5, 13):  # E=5 through L=12
         try:
           cell = ws.cell(row=excel_row_num, column=col_num)
-          
+
           # Check Excel hyperlink object
           if cell.hyperlink and cell.hyperlink.target:
             extracted_url = cell.hyperlink.target
@@ -250,17 +258,17 @@ def process_excel_import(file):
           if url_from_col:
             extracted_url = url_from_col
             print(f"  -> Found URL in '{url_col_name}' column (text): {extracted_url}")
-        
+
         # If not found, check the Excel cell directly for hyperlinks
         if not extracted_url:
           try:
             cell = ws.cell(row=excel_row_num, column=url_col_index)
-            
+
             # Check for Excel hyperlink object
             if cell.hyperlink and cell.hyperlink.target:
               extracted_url = cell.hyperlink.target
               print(f"  -> Found hyperlink in URL column (col {url_col_index}): {extracted_url}")
-            
+
             # Check for HYPERLINK formula
             elif cell.value:
               cell_val = str(cell.value)
@@ -286,7 +294,7 @@ def process_excel_import(file):
         for col_num in [6, 7]:  # F=6, G=7
           try:
             cell = ws.cell(row=excel_row_num, column=col_num)
-            
+
             # Check Excel hyperlink object
             if cell.hyperlink and cell.hyperlink.target:
               extracted_url = cell.hyperlink.target
@@ -311,7 +319,7 @@ def process_excel_import(file):
                 break
           except:
             continue
-      
+
       # PRIORITY 4: Last resort - scan all remaining columns
       if not extracted_url:
         max_col = ws.max_column if ws.max_column else 20
@@ -320,7 +328,7 @@ def process_excel_import(file):
             continue
           try:
             cell = ws.cell(row=excel_row_num, column=col_num)
-            
+
             if cell.hyperlink and cell.hyperlink.target:
               extracted_url = cell.hyperlink.target
               print(f"  -> Found hyperlink in column {col_num}: {extracted_url}")
@@ -349,7 +357,7 @@ def process_excel_import(file):
 
       if extracted_url:
         print(f"[{excel_sheet}] {item_name} -> {extracted_url}")
-      
+
       # Save to appropriate table
       if table_name == "inventory":
         cat = "Office" if "office" in excel_sheet.lower() else "Center"
@@ -370,45 +378,87 @@ def process_excel_import(file):
               price = clean_num(raw[price_col])
               if price > 0:
                 break
-        
+
         getattr(app_tables, table_name).add_row(
           Item=item_name, Item_Link=extracted_url, Price=price, Ordered=False
         )
       elif table_name == "summary_2025":
-        app_tables.summary_2025.add_row(
-          Location=raw.get('Location') or item_name,
-          Total_Cost=clean_num(raw.get('Total_Cost') or 0)
-        )
+        # Summary sheets have different column structures
+        location = None
+        total_cost = 0
+
+        # Try to find location from various possible column names
+        for loc_col in ['Location Name', 'Location', 'Location #']:
+          if loc_col in raw and raw[loc_col]:
+            location = raw[loc_col]
+            break
+
+        # Try to find total cost from various possible column names  
+        for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
+          if cost_col in raw and raw[cost_col]:
+            total_cost = clean_num(raw[cost_col])
+            if total_cost > 0:
+              break
+
+        # Only save if we have a location
+        if location:
+          app_tables.summary_2025.add_row(
+            Location=location,
+            Total_Cost=total_cost
+          )
+          print(f"  Added summary: {location} = ${total_cost}")
 
   return [s for s, t in target_assignments]
 
 # --- 4. SHOPPING & HISTORY ---
 @anvil.server.callable
 def get_shopping_list():
-  off_m = {r['Item']: dict(r) for r in app_tables.office_calcs.search()}
-  cen_m = {r['Item']: dict(r) for r in app_tables.center_calcs.search()}
+  off_m = {r['Item']: r for r in app_tables.office_calcs.search()}
+  cen_m = {r['Item']: r for r in app_tables.center_calcs.search()}
+
   items = []
   for inv in app_tables.inventory.search():
     item_nm = inv['Item']
     cat = inv.get('Category', 'Office')
     master = off_m if cat == "Office" else cen_m
     info = master.get(item_nm, {})
+
     oh, ma = (inv.get('On_Hand') or 0), (inv.get('Minimum_Amt') or 0)
-    if oh < ma and not info.get('Ordered', False):
+
+    if oh < ma:
       items.append({
-        'Item': item_nm, 'On_Hand': oh, 'Minimum_Amt': ma,
-        'Category': cat, 'Source': cat, 'Price': info.get('Price', 0),
-        'Item_Link': info.get('Item_Link'), 'Ordered': False
+        'Item': item_nm, 
+        'On_Hand': oh, 
+        'Minimum_Amt': ma,
+        'Category': cat, 
+        'Source': cat, 
+        'Price': info.get('Price', 0) if info else 0,
+        'Item_Link': info.get('Item_Link') if info else None, 
+        'Ordered': info.get('Ordered', False) if info else False 
       })
+
   return sorted(items, key=lambda x: (x['Category'], x['Item']))
 
+# MOVE THIS TO THE LEFT MARGIN (DO NOT INDENT)
 @anvil.server.callable
-def mark_as_ordered(item_name, category, status):
+def check_ordered(item_name, category, status):
+  # 1. Select table
   table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
+
+  # 2. Clean the item name
+  item_name = str(item_name).strip()
+
+  # 3. Find the row
   row = table.get(Item=item_name)
+
   if row:
     row['Ordered'] = status
     row['Date_Ordered'] = datetime.now().date() if status else None
+    print(f"Updated {item_name} to {status}")
+    return True
+
+  print(f"Could not find {item_name} in {category} table")
+  return False
 
 @anvil.server.callable
 def get_ordered_history():

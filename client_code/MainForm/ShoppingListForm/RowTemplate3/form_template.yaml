@@ -17,6 +17,7 @@ components:
   type: Label
 - data_bindings:
   - {code: 'self.item[''Ordered'']', property: checked, writeback: false}
+  event_bindings: {change: check_ordered_change}
   layout_properties: {column: RTETBL}
   name: check_ordered
   properties: {checked: true, text: ''}
