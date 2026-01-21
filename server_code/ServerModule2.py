@@ -359,13 +359,27 @@ def process_excel_import(file):
         print(f"[{excel_sheet}] {item_name} -> {extracted_url}")
 
       # Save to appropriate table
-      if table_name == "inventory":
-        cat = "Office" if "office" in excel_sheet.lower() else "Center"
-        app_tables.inventory.add_row(
-          Item=item_name, Category=cat, 
-          On_Hand=int(clean_num(raw.get('On Hand', 0))), 
-          Minimum_Amt=int(clean_num(raw.get('Minimum Amt', 0)))
-        )
+  if table_name == "inventory":
+    cat = "Office" if "office" in excel_sheet.lower() else "Center"
+    on_hand = int(clean_num(raw.get('On Hand', 0)))
+    min_amt = int(clean_num(raw.get('Minimum Amt', 0)))
+
+    # Add the inventory row
+    app_tables.inventory.add_row(
+      Item=item_name, Category=cat, 
+      On_Hand=on_hand, 
+      Minimum_Amt=min_amt
+    )
+
+    # --- NEW RESET LOGIC START ---
+    # If the item is restocked (On Hand >= Min), clear the 'Ordered' status
+    if on_hand >= min_amt:
+      calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
+      existing_item = calcs_table.get(Item=item_name)
+      if existing_item:
+        existing_item['Ordered'] = False
+        existing_item['Date_Ordered'] = None
+        # --- NEW RESET LOGIC END ---
       elif "calcs" in table_name:
         # Use intelligent price column detection
         price = 0
@@ -382,47 +396,63 @@ def process_excel_import(file):
         getattr(app_tables, table_name).add_row(
           Item=item_name, Item_Link=extracted_url, Price=price, Ordered=False
         )
-      elif table_name == "summary_2025":
-        # Summary sheets have different column structures
-        location = None
-        total_cost = 0
+  elif table_name == "summary_2025":
+    # Summary sheets have different column structures
+    location = None
+  total_cost = 0
 
-        # Try to find location from various possible column names
-        for loc_col in ['Location Name', 'Location', 'Location #']:
-          if loc_col in raw and raw[loc_col]:
-            location = raw[loc_col]
+  # Try to find location from various possible column names
+  for loc_col in ['Location Name', 'Location', 'Location #']:
+    if loc_col in raw and raw[loc_col]:
+      location = raw[loc_col]
+      break
+
+      # Try to find total cost from various possible column names  
+      for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
+        if cost_col in raw and raw[cost_col]:
+          total_cost = clean_num(raw[cost_col])
+          if total_cost > 0:
             break
 
-        # Try to find total cost from various possible column names  
-        for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
-          if cost_col in raw and raw[cost_col]:
-            total_cost = clean_num(raw[cost_col])
-            if total_cost > 0:
-              break
+          # Only save if we have a location
+          if location:
+            app_tables.summary_2025.add_row(
+              Location=location,
+              Total_Cost=total_cost
+            )
 
-        # Only save if we have a location
-        if location:
-          app_tables.summary_2025.add_row(
-            Location=location,
-            Total_Cost=total_cost
-          )
-          print(f"  Added summary: {location} = ${total_cost}")
+  # --- NEW RESET LOGIC: THE FINAL SWEEP ---
+  # This runs AFTER all sheets (Inventory AND Calcs) are finished importing
+  print("Running final stock check to reset 'Ordered' status...")
+  for inv_row in app_tables.inventory.search():
+    oh = inv_row['On_Hand'] or 0
+    ma = inv_row['Minimum_Amt'] or 0
+    item_nm = inv_row['Item']
+    cat = inv_row['Category']
 
-  return [s for s, t in target_assignments]
+    # If the item is now restocked (On Hand >= Min)
+    if oh >= ma:
+      # Find this item in the Calcs table and clear it
+      calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
+      existing_calc = calcs_table.get(Item=item_nm)
+      if existing_calc:
+        existing_calc['Ordered'] = False
+        existing_calc['Date_Ordered'] = None
+        print(f"Restocked: Reset {item_nm} in {cat} calcs.")
+
+    return [s for s, t in target_assignments]
 
 # --- 4. SHOPPING & HISTORY ---
 @anvil.server.callable
 def get_shopping_list():
   off_m = {r['Item']: r for r in app_tables.office_calcs.search()}
   cen_m = {r['Item']: r for r in app_tables.center_calcs.search()}
-
   items = []
   for inv in app_tables.inventory.search():
     item_nm = inv['Item']
     cat = inv.get('Category', 'Office')
     master = off_m if cat == "Office" else cen_m
     info = master.get(item_nm, {})
-
     oh, ma = (inv.get('On_Hand') or 0), (inv.get('Minimum_Amt') or 0)
 
     if oh < ma:
@@ -436,28 +466,16 @@ def get_shopping_list():
         'Item_Link': info.get('Item_Link') if info else None, 
         'Ordered': info.get('Ordered', False) if info else False 
       })
-
   return sorted(items, key=lambda x: (x['Category'], x['Item']))
 
-# MOVE THIS TO THE LEFT MARGIN (DO NOT INDENT)
 @anvil.server.callable
 def check_ordered(item_name, category, status):
-  # 1. Select table
   table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
-
-  # 2. Clean the item name
-  item_name = str(item_name).strip()
-
-  # 3. Find the row
-  row = table.get(Item=item_name)
-
+  row = table.get(Item=str(item_name).strip())
   if row:
     row['Ordered'] = status
     row['Date_Ordered'] = datetime.now().date() if status else None
-    print(f"Updated {item_name} to {status}")
     return True
-
-  print(f"Could not find {item_name} in {category} table")
   return False
 
 @anvil.server.callable
@@ -467,7 +485,36 @@ def get_ordered_history():
     source = "Office" if table == app_tables.office_calcs else "Center"
     for r in table.search(Ordered=True):
       history.append({
-        'Item': r['Item'], 'Source': source,
-        'Date': r['Date_Ordered'], 'Link': r['Item_Link']
+        'Item': r['Item'], 
+        'Source': source,
+        'Date': r['Date_Ordered'], 
+        'Link': r['Item_Link']
       })
   return sorted(history, key=lambda x: str(x['Date']), reverse=True)
+
+@anvil.server.callable
+def sync_inventory_status():
+  """
+  Self-check: Handles multiple matches safely using .search() 
+  to prevent 'More than one row matched' errors.
+  """
+  reset_count = 0
+  for inv in app_tables.inventory.search():
+    oh = inv['On_Hand'] or 0
+    ma = inv['Minimum_Amt'] or 0
+
+    if oh >= ma:
+      item_nm = inv['Item']
+      cat = inv['Category']
+
+      # Use .search() instead of .get() to handle duplicates
+      tbl = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
+      matching_rows = tbl.search(Item=item_nm)
+
+      for row in matching_rows:
+        if row['Ordered'] == True:
+          row['Ordered'] = False
+          row['Date_Ordered'] = None
+          reset_count += 1
+
+  return reset_count

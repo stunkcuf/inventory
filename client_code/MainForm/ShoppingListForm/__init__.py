@@ -9,11 +9,13 @@ class ShoppingListForm(ShoppingListFormTemplate):
     self.refresh_list()
 
   def refresh_list(self):
-    # This calls the consolidated function from ServerModule2
+    # 1. First, tell the server to clean up any restocked items
+    resets = anvil.server.call('sync_inventory_status')
+  
+    # 2. Now get the clean list to show the user
     items = anvil.server.call('get_shopping_list')
     self.repeating_panel_1.items = items
-
-    # Check if label_empty exists before trying to use it
+  
     if hasattr(self, 'label_empty'):
       self.label_empty.visible = len(items) == 0
       
