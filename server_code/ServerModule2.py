@@ -34,7 +34,14 @@ def get_latest_sheet(sheet_list, keyword):
     return dated_sheets[0][1]
   return None
 
-# --- 2. SEARCH LOGIC ---
+# --- 2. SEARCH & SUMMARY ---
+@anvil.server.callable
+def get_spending_summary():
+  """Returns data as tuples to avoid unpacking errors in the UI"""
+  data = app_tables.summary_2025.search()
+  results = [(r['Location'], r['Total_Cost']) for r in data]
+  return results if results else [("No Data", 0)]
+
 @anvil.server.callable
 def get_inventory_fast(category="All", search_query=None):
   search_args = {}
@@ -44,7 +51,7 @@ def get_inventory_fast(category="All", search_query=None):
     search_args['Item'] = q.ilike(f"%{search_query}%")
   return app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
 
-# --- 3. EXCEL IMPORT (De-duplication + Header Hunt) ---
+# --- 3. EXCEL IMPORT (With Upsert & Header Hunt) ---
 @anvil.server.callable
 def process_excel_import(file):
   xl = pd.ExcelFile(io.BytesIO(file.get_bytes()))
@@ -84,8 +91,7 @@ def process_excel_import(file):
       if table_name == "inventory":
         cat = "Office" if "office" in excel_sheet.lower() else "Center"
         existing = app_tables.inventory.get(Item=item_name, Category=cat)
-        on_hand = int(clean_num(raw.get('On Hand', 0)))
-        min_amt = int(clean_num(raw.get('Minimum Amt', 0)))
+        on_hand, min_amt = int(clean_num(raw.get('On Hand', 0))), int(clean_num(raw.get('Minimum Amt', 0)))
         if existing: existing.update(On_Hand=on_hand, Minimum_Amt=min_amt)
         else: app_tables.inventory.add_row(Item=item_name, Category=cat, On_Hand=on_hand, Minimum_Amt=min_amt)
 
@@ -96,36 +102,53 @@ def process_excel_import(file):
         existing = table.get(Item=item_name)
         if existing: existing.update(Item_Link=url, Price=price)
         else: table.add_row(Item=item_name, Item_Link=url, Price=price, Ordered=False)
+
+      elif table_name == "summary_2025":
+        app_tables.summary_2025.add_row(
+          Location=raw.get('Location') or item_name,
+          Total_Cost=clean_num(raw.get('Total_Cost') or raw.get('Total Cost') or 0)
+        )
   return [s for s, t in target_assignments]
 
-# --- 4. SHOPPING LIST (The Final Join) ---
+# --- 4. SHOPPING LIST ---
 @anvil.server.callable
 def get_shopping_list():
-  off_master = {r['Item']: dict(r) for r in app_tables.office_calcs.search() if r['Item']}
-  cen_master = {r['Item']: dict(r) for r in app_tables.center_calcs.search() if r['Item']}
-
+  off_m = {r['Item']: dict(r) for r in app_tables.office_calcs.search() if r['Item']}
+  cen_m = {r['Item']: dict(r) for r in app_tables.center_calcs.search() if r['Item']}
   items = []
-  for inv_row in app_tables.inventory.search():
-    item_name = inv_row['Item']
-    cat = inv_row.get('Category', 'Office')
-    master_dict = off_master if cat == "Office" else cen_master
-    master_info = master_dict.get(item_name, {})
-
-    oh, ma = inv_row.get('On_Hand', 0) or 0, inv_row.get('Minimum_Amt', 0) or 0
-    is_ordered = master_info.get('Ordered', False)
-
-    if oh < ma and not is_ordered:
+  for inv in app_tables.inventory.search():
+    item = inv['Item']
+    cat = inv.get('Category', 'Office')
+    master = off_m if cat == "Office" else cen_m
+    info = master.get(item, {})
+    oh, ma = inv.get('On_Hand', 0) or 0, inv.get('Minimum_Amt', 0) or 0
+    if oh < ma and not info.get('Ordered', False):
       items.append({
-        'Item': item_name, 'On_Hand': oh, 'Minimum_Amt': ma,
+        'Item': item, 'On_Hand': oh, 'Minimum_Amt': ma,
         'Category': cat, 'Source': cat,
-        'Price': master_info.get('Price', 0),
-        'Item_Link': master_info.get('Item_Link'),
-        'Ordered': is_ordered
+        'Price': info.get('Price', 0),
+        'Item_Link': info.get('Item_Link'),
+        'Ordered': False
       })
   return sorted(items, key=lambda x: (x['Category'], x['Item']))
 
-@anvil.server.callable
-def mark_as_ordered(item_name, category, status):
-  table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
-  row = table.get(Item=item_name)
-  if row: row['Ordered'] = status
+  @anvil.server.callable
+  def mark_as_ordered(item_name, category, status):
+    table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
+    row = table.get(Item=item_name)
+    if row: row['Ordered'] = status
+
+  @anvil.server.callable
+  def get_ordered_history():
+    # Combine both master tables to see everything ordered
+    off = app_tables.office_calcs.search(Ordered=True)
+    cen = app_tables.center_calcs.search(Ordered=True)
+
+    history = []
+    for r in list(off) + list(cen):
+      history.append({
+        'Item': r['Item'],
+        'Source': 'Office' if r in off else 'Center',
+        'Link': r['Item_Link']
+      })
+    return history

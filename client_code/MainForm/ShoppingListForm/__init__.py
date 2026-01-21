@@ -15,3 +15,8 @@ class ShoppingListForm(ShoppingListFormTemplate):
     # Check if label_empty exists before trying to use it
     if hasattr(self, 'label_empty'):
       self.label_empty.visible = len(items) == 0
+      
+  def btn_print_click(self, **event_args):
+    import anvil.js
+    # This triggers the browser's native print dialog
+    anvil.js.window.print()
