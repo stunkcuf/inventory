@@ -22,11 +22,15 @@ class RowTemplate3(RowTemplate3Template):
       self.link_item.foreground = "blue"
 
   def check_ordered_change(self, **event_args):
-    # 3. Call server with ID and Table Name
+    # This calls the updated server function using Name and Category
     anvil.server.call('mark_as_ordered', 
-                      self.item['row_id'], 
-                      self.item['table_name'], 
+                      self.item['Item'], 
+                      self.item['Category'], 
                       self.check_ordered.checked)
+  
+    # Optional: To make the item disappear immediately after checking:
+    # get_open_form().content_panel.clear()
+    # get_open_form().content_panel.add_component(ShoppingListForm())
 
     # Optional: Grey out text
     color = "#999" if self.check_ordered.checked else "black"

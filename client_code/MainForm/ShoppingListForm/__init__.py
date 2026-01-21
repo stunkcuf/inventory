@@ -18,5 +18,5 @@ class ShoppingListForm(ShoppingListFormTemplate):
       
   def btn_print_click(self, **event_args):
     import anvil.js
-    # This triggers the browser's native print dialog
+    # Triggers the standard Print dialog
     anvil.js.window.print()
