@@ -24,6 +24,9 @@ db_schema:
     - admin_ui: {order: 6, width: 200}
       name: Ordered
       type: bool
+    - admin_ui: {order: 7, width: 200}
+      name: Date_Ordered
+      type: date
     server: full
     title: center_calcs
   center_supplies:
@@ -210,6 +213,9 @@ db_schema:
     - admin_ui: {order: 6, width: 200}
       name: Ordered
       type: bool
+    - admin_ui: {order: 7, width: 200}
+      name: Date_Ordered
+      type: date
     server: full
     title: office_calcs
   office_supplies:

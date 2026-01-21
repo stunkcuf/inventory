@@ -1,6 +1,7 @@
 from ._anvil_designer import ShoppingListFormTemplate
 from anvil import *
 import anvil.server
+import anvil.js
 
 class ShoppingListForm(ShoppingListFormTemplate):
   def __init__(self, **properties):
@@ -18,5 +19,4 @@ class ShoppingListForm(ShoppingListFormTemplate):
       
   def btn_print_click(self, **event_args):
     import anvil.js
-    # Triggers the standard Print dialog
     anvil.js.window.print()
