@@ -10,6 +10,11 @@ components:
   properties:
     items: ['["All", "Office", "Center"]']
   type: DropDown
+- event_bindings: {change: drop_down_subcategory_change}
+  layout_properties: {grid_position: 'KYIKQS,RXLNSK ZUELRH,DWJWAF'}
+  name: drop_down_subcategory
+  properties: {}
+  type: DropDown
 - event_bindings: {click: button_add_click}
   layout_properties: {grid_position: 'KYIKQS,IQTZXJ PWJPNN,FTJIIV'}
   name: button_add

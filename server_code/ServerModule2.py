@@ -86,13 +86,31 @@ def get_excel_column_index(df, column_name):
 
 # --- 2. DATA LOADERS ---
 @anvil.server.callable
-def get_inventory_fast(category="All", search_query=None):
+def get_inventory_fast(category="All", search_query=None, subcategory=None):
   search_args = {}
   if category and category != "All":
     search_args['Category'] = category
+  if subcategory and subcategory != "All":
+    search_args['Subcategory'] = subcategory
   if search_query and search_query.strip() != "":
     search_args['Item'] = q.ilike(f"%{search_query}%")
   return app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
+
+@anvil.server.callable
+def get_subcategories(category="All"):
+  """Get list of unique subcategories for a given category"""
+  search_args = {}
+  if category and category != "All":
+    search_args['Category'] = category
+
+  items = app_tables.inventory.search(**search_args)
+  subcategories = set()
+  for item in items:
+    subcat = item.get('Subcategory')
+    if subcat:
+      subcategories.add(subcat)
+
+  return sorted(list(subcategories))
 
 @anvil.server.callable
 def get_spending_summary():
@@ -195,6 +213,9 @@ def process_excel_import(file):
     # Find price column (handles variations)
     price_col_name = find_column_by_keywords(df.columns, 'amount', 'price', 'cost', 'each')
 
+    # Track the current subcategory as we iterate through rows
+    current_subcategory = None
+
     for idx, row in df.iterrows():
       raw = dict(row)
 
@@ -209,11 +230,19 @@ def process_excel_import(file):
             item_name = str(raw[col]).strip()
             break
 
-      if not item_name or item_name in ["None", "Item", "nan"] or item_name.endswith(':'):
+      if not item_name or item_name in ["None", "Item", "nan"]:
+        continue
+
+      # Check if this is a subcategory header (ends with ':' or is bold/all-caps)
+      if item_name.endswith(':'):
+        current_subcategory = item_name.rstrip(':')
+        print(f"  Found subcategory: {current_subcategory}")
         continue
 
       # Skip section headers (usually all caps or end with colon)
       if item_name.isupper() and len(item_name.split()) <= 3:
+        current_subcategory = item_name
+        print(f"  Found subcategory: {current_subcategory}")
         continue
 
       # --- COMPREHENSIVE URL EXTRACTION ---
@@ -289,7 +318,7 @@ def process_excel_import(file):
             item_name = item_name.split(' -> ')[0].strip()
           print(f"  -> Found URL in item name: {extracted_url}")
 
-      # PRIORITY 3: Scan columns F and G specifically (common URL locations)
+      # PRIORITY 4: Scan columns F and G specifically (common URL locations)
       if not extracted_url:
         for col_num in [6, 7]:  # F=6, G=7
           try:
@@ -320,7 +349,7 @@ def process_excel_import(file):
           except:
             continue
 
-      # PRIORITY 4: Last resort - scan all remaining columns
+      # PRIORITY 5: Last resort - scan all remaining columns
       if not extracted_url:
         max_col = ws.max_column if ws.max_column else 20
         for col_num in range(1, min(max_col + 1, 50)):
@@ -359,27 +388,29 @@ def process_excel_import(file):
         print(f"[{excel_sheet}] {item_name} -> {extracted_url}")
 
       # Save to appropriate table
-  if table_name == "inventory":
-    cat = "Office" if "office" in excel_sheet.lower() else "Center"
-    on_hand = int(clean_num(raw.get('On Hand', 0)))
-    min_amt = int(clean_num(raw.get('Minimum Amt', 0)))
+      if table_name == "inventory":
+        cat = "Office" if "office" in excel_sheet.lower() else "Center"
+        on_hand = int(clean_num(raw.get('On Hand', 0)))
+        min_amt = int(clean_num(raw.get('Minimum Amt', 0)))
 
-    # Add the inventory row
-    app_tables.inventory.add_row(
-      Item=item_name, Category=cat, 
-      On_Hand=on_hand, 
-      Minimum_Amt=min_amt
-    )
+        # Add the inventory row with subcategory
+        app_tables.inventory.add_row(
+          Item=item_name, 
+          Category=cat,
+          Subcategory=current_subcategory,
+          On_Hand=on_hand, 
+          Minimum_Amt=min_amt
+        )
 
-    # --- NEW RESET LOGIC START ---
-    # If the item is restocked (On Hand >= Min), clear the 'Ordered' status
-    if on_hand >= min_amt:
-      calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
-      existing_item = calcs_table.get(Item=item_name)
-      if existing_item:
-        existing_item['Ordered'] = False
-        existing_item['Date_Ordered'] = None
-        # --- NEW RESET LOGIC END ---
+        # If the item is restocked (On Hand >= Min), clear the 'Ordered' status
+        if on_hand >= min_amt:
+          calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
+          # Use .search() to handle potential duplicates
+          matching_items = calcs_table.search(Item=item_name)
+          for existing_item in matching_items:
+            existing_item['Ordered'] = False
+            existing_item['Date_Ordered'] = None
+
       elif "calcs" in table_name:
         # Use intelligent price column detection
         price = 0
@@ -396,33 +427,33 @@ def process_excel_import(file):
         getattr(app_tables, table_name).add_row(
           Item=item_name, Item_Link=extracted_url, Price=price, Ordered=False
         )
-  elif table_name == "summary_2025":
-    # Summary sheets have different column structures
-    location = None
-  total_cost = 0
 
-  # Try to find location from various possible column names
-  for loc_col in ['Location Name', 'Location', 'Location #']:
-    if loc_col in raw and raw[loc_col]:
-      location = raw[loc_col]
-      break
+      elif table_name == "summary_2025":
+        # Summary sheets have different column structures
+        location = None
+        total_cost = 0
 
-      # Try to find total cost from various possible column names  
-      for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
-        if cost_col in raw and raw[cost_col]:
-          total_cost = clean_num(raw[cost_col])
-          if total_cost > 0:
+        # Try to find location from various possible column names
+        for loc_col in ['Location Name', 'Location', 'Location #']:
+          if loc_col in raw and raw[loc_col]:
+            location = raw[loc_col]
             break
 
-          # Only save if we have a location
-          if location:
-            app_tables.summary_2025.add_row(
-              Location=location,
-              Total_Cost=total_cost
-            )
+        # Try to find total cost from various possible column names  
+        for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
+          if cost_col in raw and raw[cost_col]:
+            total_cost = clean_num(raw[cost_col])
+            if total_cost > 0:
+              break
 
-  # --- NEW RESET LOGIC: THE FINAL SWEEP ---
-  # This runs AFTER all sheets (Inventory AND Calcs) are finished importing
+        # Only save if we have a location
+        if location:
+          app_tables.summary_2025.add_row(
+            Location=location,
+            Total_Cost=total_cost
+          )
+
+  # Final sweep to reset 'Ordered' status
   print("Running final stock check to reset 'Ordered' status...")
   for inv_row in app_tables.inventory.search():
     oh = inv_row['On_Hand'] or 0
@@ -432,21 +463,28 @@ def process_excel_import(file):
 
     # If the item is now restocked (On Hand >= Min)
     if oh >= ma:
-      # Find this item in the Calcs table and clear it
+      # Find this item in the Calcs table and clear it - use .search() to handle duplicates
       calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
-      existing_calc = calcs_table.get(Item=item_nm)
-      if existing_calc:
-        existing_calc['Ordered'] = False
-        existing_calc['Date_Ordered'] = None
-        print(f"Restocked: Reset {item_nm} in {cat} calcs.")
+      matching_calcs = calcs_table.search(Item=item_nm)
+      for existing_calc in matching_calcs:
+        if existing_calc.get('Ordered'):
+          existing_calc['Ordered'] = False
+          existing_calc['Date_Ordered'] = None
+          print(f"Restocked: Reset {item_nm} in {cat} calcs.")
 
-    return [s for s, t in target_assignments]
+  return [s for s, t in target_assignments]
 
 # --- 4. SHOPPING & HISTORY ---
 @anvil.server.callable
 def get_shopping_list():
   off_m = {r['Item']: r for r in app_tables.office_calcs.search()}
   cen_m = {r['Item']: r for r in app_tables.center_calcs.search()}
+
+  print(f"Office calcs items: {len(off_m)}")
+  print(f"Center calcs items: {len(cen_m)}")
+  if off_m:
+    print(f"Sample office item: {list(off_m.keys())[0]} -> Price: {list(off_m.values())[0].get('Price')}, URL: {list(off_m.values())[0].get('Item_Link')}")
+
   items = []
   for inv in app_tables.inventory.search():
     item_nm = inv['Item']
@@ -456,16 +494,26 @@ def get_shopping_list():
     oh, ma = (inv.get('On_Hand') or 0), (inv.get('Minimum_Amt') or 0)
 
     if oh < ma:
+      price = info.get('Price', 0) if info else 0
+      item_link = info.get('Item_Link') if info else None
+      ordered = info.get('Ordered', False) if info else False
+
+      # Debug first 3 items
+      if len(items) < 3:
+        print(f"Shopping item: {item_nm} | Cat: {cat} | Found in calcs: {item_nm in master} | Price: {price} | URL: {item_link}")
+
       items.append({
         'Item': item_nm, 
         'On_Hand': oh, 
         'Minimum_Amt': ma,
         'Category': cat, 
         'Source': cat, 
-        'Price': info.get('Price', 0) if info else 0,
-        'Item_Link': info.get('Item_Link') if info else None, 
-        'Ordered': info.get('Ordered', False) if info else False 
+        'Price': price,
+        'Item_Link': item_link, 
+        'Ordered': ordered
       })
+
+  print(f"Total shopping list items: {len(items)}")
   return sorted(items, key=lambda x: (x['Category'], x['Item']))
 
 @anvil.server.callable

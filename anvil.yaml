@@ -84,6 +84,9 @@ db_schema:
     - admin_ui: {order: 1, width: 117}
       name: On_Hand
       type: number
+    - admin_ui: {order: 6, width: 200}
+      name: Subcategory
+      type: string
     server: full
     title: inventory
   inventory_summary_center:
@@ -272,6 +275,7 @@ db_schema:
 dependencies: []
 metadata: {logo_img: 'asset:Home Picture.png', title: AOC supplies}
 name: inventory
+native_deps: {head_html: ''}
 package_name: inventory
 renamed: true
 runtime_options:
