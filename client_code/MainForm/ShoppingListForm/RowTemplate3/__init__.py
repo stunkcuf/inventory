@@ -4,62 +4,64 @@ import anvil.server
 
 class RowTemplate3(RowTemplate3Template):
   def __init__(self, **properties):
+    # Set Form properties and Data Bindings.
     self.init_components(**properties)
 
-    # Calculate quantity to buy
-    on_hand = self.item.get('On_Hand', 0)
-    minimum = self.item.get('Minimum_Amt', 0)
-    qty_to_buy = max(0, minimum - on_hand)
-
-    # Bind data to UI
+    # 1. Bind Data to UI Elements
+    # self.item comes from the 'items' list returned by get_shopping_list
     self.lbl_dept.text = f"{self.item['Source']} - {self.item['Category']}"
     self.link_item.text = self.item['Item']
     self.link_item.url = self.item['Item_Link']
     self.lbl_price.text = f"${self.item['Price']:.2f}"
-    self.lbl_qty.text = str(qty_to_buy)
 
-    # MOBILE OPTIMIZATION: Add stock info to item name for smaller screens
-    self.lbl_stock_info.text = f"Need: {qty_to_buy} (Have: {on_hand}/{minimum})"
+    # FIXED: Calculate quantity to buy (Minimum - On_Hand)
+    on_hand = self.item.get('On_Hand', 0)
+    minimum = self.item.get('Minimum_Amt', 0)
+    qty_to_buy = max(0, minimum - on_hand)  # Never negative
+    self.lbl_qty.text = str(qty_to_buy)
 
     self.check_ordered.checked = self.item['Ordered']
 
-    # Format links
+    # 2. Initial Visual Cues (Formatting links)
     if not self.item['Item_Link']:
       self.link_item.foreground = "black"
       self.link_item.role = None
     else:
       self.link_item.foreground = "blue"
 
-    # Apply grey-out if already checked
+    # 3. Apply grey-out if already checked on load
     if self.check_ordered.checked:
       self.link_item.foreground = "#999"
-      self.lbl_dept.foreground = "#999"
-      self.lbl_price.foreground = "#999"
-      self.lbl_qty.foreground = "#999"
-      self.lbl_stock_info.foreground = "#999"
 
   def check_ordered_change(self, **event_args):
-    """Checkbox toggled"""
+    """This method is called when the checkbox is toggled"""
     try:
+      # Capture the current state of the checkbox
       new_status = self.check_ordered.checked
+
+      # Update the local 'item' dictionary so the state 'sticks' 
+      # while the user is on this page.
       self.item['Ordered'] = new_status
 
-      # Visual feedback
-      color = "#999" if new_status else ("blue" if self.item['Item_Link'] else "black")
-      self.link_item.foreground = color
+      # Visual cue: Grey out the text if checked, restore if unchecked
+      if new_status:
+        self.link_item.foreground = "#999"
+      else:
+        self.link_item.foreground = "blue" if self.item['Item_Link'] else "black"
 
-      dept_color = "#999" if new_status else "black"
-      self.lbl_dept.foreground = dept_color
-      self.lbl_price.foreground = dept_color
-      self.lbl_qty.foreground = dept_color
-      self.lbl_stock_info.foreground = dept_color
+      # CALL THE SERVER: This must match the name in your ServerModule
+      result = anvil.server.call(
+        'check_ordered', 
+        self.item['Item'], 
+        self.item['Category'], 
+        new_status
+      )
 
-      # Update server
-      result = anvil.server.call('check_ordered', self.item['Item'], self.item['Category'], new_status)
-
+      # Verify if the database actually found the row to update
       if not result:
         alert(f"Warning: Could not find '{self.item['Item']}' in the database tables.")
 
     except Exception as e:
+      # This catches errors like 'No server function registered'
       print(f"Error calling server: {e}")
       alert(f"Communication Error: {e}")
