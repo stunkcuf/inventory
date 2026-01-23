@@ -7,6 +7,14 @@ class RowTemplate2(RowTemplate2Template):
     # Set Form properties and Data Bindings.
     self.init_components(**properties)
 
+    # FIXED: Calculate To_Order on initial load
+    on_hand = self.item.get('On_Hand', 0)
+    minimum = self.item.get('Minimum_Amt', 0)
+    self.item['To_Order'] = max(0, minimum - on_hand)
+
+    # Refresh bindings to show the calculated value
+    self.refresh_data_bindings()
+
   def btn_plus_click(self, **event_args):
     """Increment stock and update To_Order"""
     self.item['On_Hand'] += 1

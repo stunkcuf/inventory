@@ -6,16 +6,22 @@ class RowTemplate3(RowTemplate3Template):
   def __init__(self, **properties):
     # Set Form properties and Data Bindings.
     self.init_components(**properties)
-  
+
     # 1. Bind Data to UI Elements
     # self.item comes from the 'items' list returned by get_shopping_list
     self.lbl_dept.text = f"{self.item['Source']} - {self.item['Category']}"
     self.link_item.text = self.item['Item']
     self.link_item.url = self.item['Item_Link']
     self.lbl_price.text = f"${self.item['Price']:.2f}"
-    self.lbl_qty.text = str(self.item['On_Hand'])
+
+    # FIXED: Calculate quantity to buy (Minimum - On_Hand)
+    on_hand = self.item.get('On_Hand', 0)
+    minimum = self.item.get('Minimum_Amt', 0)
+    qty_to_buy = max(0, minimum - on_hand)  # Never negative
+    self.lbl_qty.text = str(qty_to_buy)
+
     self.check_ordered.checked = self.item['Ordered']
-    
+
     # 2. Initial Visual Cues (Formatting links)
     if not self.item['Item_Link']:
       self.link_item.foreground = "black"

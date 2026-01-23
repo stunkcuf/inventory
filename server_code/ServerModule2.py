@@ -141,6 +141,7 @@ def get_spending_summary():
   IMPROVED: Fixed iterator consumption issue
   WHY: Was calling search() 4 times unnecessarily - now only calls once
   PERFORMANCE: 4x faster database access
+  NOTE: This is the legacy function - use get_spending_summary_by_table for new code
   """
   print("=== get_spending_summary called ===")
 
@@ -167,11 +168,76 @@ def get_spending_summary():
   print(f"Returning {len(results)} results")
   return results
 
+@anvil.server.callable
+def get_spending_summary_by_table(table_name='summary_2025'):
+  """
+  NEW: Get spending summary from a specific table
+  WHY: Allows switching between different summary tables
+  USAGE: get_spending_summary_by_table('inventory_summary_office')
+  """
+  print(f"=== get_spending_summary_by_table called for {table_name} ===")
+
+  # Validate table name to prevent errors
+  valid_tables = [
+    'summary_2025',
+    'inventory_summary_total',
+    'inventory_summary_office',
+    'inventory_summary_internal',
+    'inventory_summary_center'
+  ]
+
+  if table_name not in valid_tables:
+    print(f"Invalid table name: {table_name}")
+    return [("No Data", 0)]
+
+  try:
+    # Get the table dynamically
+    table = getattr(app_tables, table_name)
+    data = list(table.search())
+
+    print(f"Found {len(data)} rows in {table_name}")
+
+    if not data:
+      return [("No Data", 0)]
+
+    # Build results
+    results = []
+    for r in data:
+      location = r.get('Location') or r.get('Location Name') or r.get('Location #') or "Unknown"
+      total_cost = r.get('Total_Cost') or r.get('Total Amt') or r.get('Total_Amt') or 0
+      results.append((location, total_cost))
+      print(f"  {location}: ${total_cost}")
+
+    print(f"Returning {len(results)} results")
+    return results
+
+  except Exception as e:
+    print(f"Error loading {table_name}: {e}")
+    import traceback
+    traceback.print_exc()
+    return [("No Data", 0)]
+
+
+@anvil.server.callable
+def get_available_summary_tables():
+  """
+  NEW: Return list of available summary tables
+  WHY: Populate dropdown with user-friendly names
+  USAGE: Called by SummaryForm to populate dropdown options
+  """
+  return [
+    ('2025 Summary', 'summary_2025'),
+    ('Total Inventory Summary', 'inventory_summary_total'),
+    ('Office Inventory Summary', 'inventory_summary_office'),
+    ('Internal Inventory Summary', 'inventory_summary_internal'),
+    ('Center Inventory Summary', 'inventory_summary_center'),
+  ]
+
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
 @anvil.server.callable
 def process_excel_import(file):
   """
-  IMPROVED: Added comprehensive error handling and import statistics
+  IMPROVED: Added comprehensive error handling, import statistics, and support for multiple summary tables
   WHY: Users need to know what succeeded/failed during import
   ADDED: Returns detailed import summary instead of just sheet names
   """
@@ -182,6 +248,10 @@ def process_excel_import(file):
     'office_calcs': 0,
     'center_calcs': 0,
     'summary_2025': 0,
+    'inventory_summary_total': 0,
+    'inventory_summary_office': 0,
+    'inventory_summary_internal': 0,
+    'inventory_summary_center': 0,
     'errors': [],
     'warnings': []
   }
@@ -203,24 +273,48 @@ def process_excel_import(file):
     if latest_off: target_assignments.append((latest_off, "inventory"))
     if latest_cen: target_assignments.append((latest_cen, "inventory"))
 
+    # IMPROVED: Added support for multiple summary tables
     for s in all_sheets:
       ls = s.lower()
+
+      # Main 2025 Summary
       if s == "2025-Summary":
         target_assignments.append((s, "summary_2025"))
         print(f"Assigning sheet '{s}' to table 'summary_2025'")
+
+      # Inventory Summary Tables (NEW)
+      elif "total" in ls and "summary" in ls:
+        target_assignments.append((s, "inventory_summary_total"))
+        print(f"Assigning sheet '{s}' to table 'inventory_summary_total'")
+      elif "office" in ls and "summary" in ls:
+        target_assignments.append((s, "inventory_summary_office"))
+        print(f"Assigning sheet '{s}' to table 'inventory_summary_office'")
+      elif "internal" in ls and "summary" in ls:
+        target_assignments.append((s, "inventory_summary_internal"))
+        print(f"Assigning sheet '{s}' to table 'inventory_summary_internal'")
+      elif ("center" in ls or "centre" in ls) and "summary" in ls:
+        target_assignments.append((s, "inventory_summary_center"))
+        print(f"Assigning sheet '{s}' to table 'inventory_summary_center'")
+
+      # Calcs sheets
       elif "calcs" in ls:
         table = "office_calcs" if "office" in ls else "center_calcs"
         target_assignments.append((s, table))
         print(f"Assigning sheet '{s}' to table '{table}' (URLS HERE)")
+
+      # Master sheets
       elif "master" in ls:
         table = "center_calcs"
         target_assignments.append((s, table))
         print(f"Assigning sheet '{s}' to table '{table}'")
 
     # UNCHANGED: Delete all rows before import (this is correct)
-    for tbl in ["inventory", "summary_2025", "office_calcs", "center_calcs"]:
+    for tbl in ["inventory", "summary_2025", "office_calcs", "center_calcs", 
+                "inventory_summary_total", "inventory_summary_office", 
+                "inventory_summary_internal", "inventory_summary_center"]:
       if any(t == tbl for s, t in target_assignments):
         getattr(app_tables, tbl).delete_all_rows()
+        print(f"Cleared table: {tbl}")
 
     # IMPROVED: Wrapped each sheet in try/except to handle partial failures
     for excel_sheet, table_name in target_assignments:
@@ -406,7 +500,7 @@ def process_excel_import(file):
           if extracted_url:
             print(f"[{excel_sheet}] {item_name} -> {extracted_url}")
 
-          # UNCHANGED: Save to appropriate table (your logic is correct)
+          # Save to appropriate table
           if table_name == "inventory":
             cat = "Office" if "office" in excel_sheet.lower() else "Center"
             on_hand = int(clean_num(raw.get('On Hand', 0)))
@@ -456,7 +550,8 @@ def process_excel_import(file):
             )
             import_stats[table_name] += 1
 
-          elif table_name == "summary_2025":
+          elif "summary" in table_name:
+            # NEW: Handle all summary tables (2025, total, office, internal, center)
             location = None
             total_cost = 0
 
@@ -472,16 +567,18 @@ def process_excel_import(file):
                   break
 
             if location:
-              app_tables.summary_2025.add_row(
+              getattr(app_tables, table_name).add_row(
                 Location=location,
                 Total_Cost=total_cost
               )
-              import_stats['summary_2025'] += 1
+              import_stats[table_name] += 1
 
       except Exception as sheet_error:
         # ADDED: Per-sheet error handling
         error_msg = f"Error processing sheet '{excel_sheet}': {str(sheet_error)}"
         print(error_msg)
+        import traceback
+        traceback.print_exc()
         import_stats['errors'].append(error_msg)
         continue  # Continue with next sheet
 
@@ -503,12 +600,22 @@ def process_excel_import(file):
             print(f"Restocked: Reset {item_nm} in {cat} calcs.")
 
     # IMPROVED: Return detailed statistics instead of just sheet names
+    total_items = sum([
+      import_stats['inventory'], 
+      import_stats['office_calcs'], 
+      import_stats['center_calcs'], 
+      import_stats['summary_2025'],
+      import_stats['inventory_summary_total'],
+      import_stats['inventory_summary_office'],
+      import_stats['inventory_summary_internal'],
+      import_stats['inventory_summary_center']
+    ])
+
     return {
       'success': True,
       'sheets_processed': [s for s, t in target_assignments],
       'stats': import_stats,
-      'total_items': sum([import_stats['inventory'], import_stats['office_calcs'], 
-                          import_stats['center_calcs'], import_stats['summary_2025']])
+      'total_items': total_items
     }
 
   except Exception as e:
@@ -683,7 +790,7 @@ def get_inventory_stats():
   for item in all_items:
     subcat = item.get('Subcategory', 'Uncategorized')
     categories[subcat] = categories.get(subcat, 0) + 1
-
+  
   return {
     'total_items': total_items,
     'low_stock_count': low_stock,

@@ -10,25 +10,25 @@ components:
     - {code: 'self.item[''On_Hand'']', property: text, writeback: false}
     layout_properties: {grid_position: 'WILZZU,ANGDCJ'}
     name: label_on_hand
-    properties: {text: ''}
+    properties: {align: center, text: ''}
     type: Label
   - data_bindings:
     - {code: 'self.item[''Minimum_Amt'']', property: text, writeback: false}
     layout_properties: {grid_position: 'WILZZU,DCKXEL'}
     name: label_min_amt
-    properties: {text: ''}
+    properties: {align: left, text: ''}
     type: Label
   - data_bindings:
     - {code: 'self.item[''To_Order'']', property: text, writeback: false}
     layout_properties: {grid_position: 'WILZZU,PZJDYF'}
     name: label_to_order
-    properties: {text: ''}
+    properties: {align: center, text: ''}
     type: Label
   - data_bindings:
     - {code: 'self.item[''Category'']', property: text, writeback: false}
     layout_properties: {grid_position: 'WILZZU,QLGYAA'}
     name: label_category
-    properties: {text: ''}
+    properties: {align: right, text: ''}
     type: Label
   - components:
     - event_bindings: {click: btn_minus_click}
@@ -70,6 +70,7 @@ components:
   properties:
     border: '2'
     col_spacing: tiny
+    col_widths: '{"KJBWPD":8,"ANGDCJ":12,"DCKXEL":10,"PZJDYF":5,"QLGYAA":10,"BBZTCM":5,"FKZWQX":5,"YOJFJJ":5}'
     spacing:
       padding: [0, 0, 2, 5]
     visible: true

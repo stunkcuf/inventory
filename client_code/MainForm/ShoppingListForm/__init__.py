@@ -50,39 +50,6 @@ class ShoppingListForm(ShoppingListFormTemplate):
       pass
     anvil.js.window.print()
 
-  def mark_all_ordered_button_click(self, **event_args):
-    """Mark all items as ordered"""
-    print("Mark all ordered button clicked!")  # DEBUG
-    items = self.repeating_panel_1.items
-
-    if not items or len(items) == 0:
-      Notification("No items to mark as ordered", style="info").show()
-      return
-
-    # Count unordered items
-    unordered = [item for item in items if not item.get('Ordered', False)]
-
-    if len(unordered) == 0:
-      Notification("All items are already marked as ordered!", style="info").show()
-      return
-
-    if confirm(f"Mark {len(unordered)} items as ordered?"):
-      success_count = 0
-      for item in unordered:
-        try:
-          result = anvil.server.call('check_ordered', 
-                                     item['Item'], 
-                                     item['Category'], 
-                                     True)
-          if result:
-            success_count += 1
-        except Exception as e:
-          print(f"Error marking {item['Item']}: {e}")
-
-      Notification(f"Marked {success_count} items as ordered!", 
-                   style="success", timeout=3).show()
-      self.refresh_list()
-
   def refresh_button_click(self, **event_args):
     """Manual refresh button"""
     print("Refresh button clicked!")  # DEBUG
