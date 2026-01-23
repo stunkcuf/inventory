@@ -171,9 +171,9 @@ def get_spending_summary():
 @anvil.server.callable
 def get_spending_summary_by_table(table_name='summary_2025'):
   """
-  NEW: Get spending summary from a specific table
-  WHY: Allows switching between different summary tables
-  USAGE: get_spending_summary_by_table('inventory_summary_office')
+  VERSION 2: Get spending summary from a specific table with AGGREGATION
+  WHY: Handles both column name formats and aggregates multiple rows per location
+  AGGREGATES: Sums multiple entries for the same location
   """
   print(f"=== get_spending_summary_by_table called for {table_name} ===")
 
@@ -200,16 +200,64 @@ def get_spending_summary_by_table(table_name='summary_2025'):
     if not data:
       return [("No Data", 0)]
 
-    # Build results
-    results = []
-    for r in data:
-      location = r.get('Location') or r.get('Location Name') or r.get('Location #') or "Unknown"
-      total_cost = r.get('Total_Cost') or r.get('Total Amt') or r.get('Total_Amt') or 0
-      results.append((location, total_cost))
-      print(f"  {location}: ${total_cost}")
+    # Check first row to see what columns exist
+    first_row = data[0]
+    available_columns = list(first_row.keys())
+    print(f"Available columns in {table_name}: {available_columns}")
 
-    print(f"Returning {len(results)} results")
-    return results
+    # Build results - aggregate by location
+    location_totals = {}
+
+    for r in data:
+      # Try different location column variations
+      location = (
+        r.get('location_name') or      # inventory summary tables (lowercase)
+        r.get('Location') or            # summary_2025 format
+        r.get('Location Name') or 
+        r.get('Location #') or 
+        None
+      )
+
+      # Try different cost column variations
+      total_cost = (
+        r.get('total_amt') or          # inventory summary tables (lowercase)
+        r.get('Total_Cost') or         # summary_2025 format
+        r.get('Total Amt') or 
+        r.get('Total_Amt') or 
+        0
+      )
+
+      # Convert to float if needed
+      if isinstance(total_cost, str):
+        total_cost = clean_num(total_cost)
+      else:
+        total_cost = float(total_cost) if total_cost else 0
+
+      # Skip empty rows
+      if location and location.strip():
+        location = location.strip()
+
+        # Aggregate totals by location
+        if location in location_totals:
+          location_totals[location] += total_cost
+        else:
+          location_totals[location] = total_cost
+
+    # Convert to list of tuples and filter out zeros
+    results = [
+      (loc, cost) 
+      for loc, cost in location_totals.items() 
+      if cost > 0
+    ]
+
+    # Sort by location name
+    results.sort(key=lambda x: x[0])
+
+    print(f"Aggregated {len(data)} rows into {len(results)} locations")
+    for loc, cost in results:
+      print(f"  {loc}: ${cost:,.2f}")
+
+    return results if results else [("No Data", 0)]
 
   except Exception as e:
     print(f"Error loading {table_name}: {e}")
