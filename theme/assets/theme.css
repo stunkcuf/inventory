@@ -36,7 +36,8 @@ body {
   background-color: %color:Surface%;
   z-index: 1000;
   position: fixed;
-  top: 0; width: 100%;
+  top: 0; 
+  width: 100%;
 }
 
 /* --- Card & Row Styling --- */
@@ -57,3 +58,45 @@ body {
 .flow-panel-gutter {
   justify-content: center !important;
 }
+
+/* ============================================
+MOBILE OPTIMIZATION
+============================================ */
+
+/* Make everything responsive */
+* {
+  box-sizing: border-box;
+}
+
+/* Mobile devices (phones) */
+@media screen and (max-width: 768px) {
+
+  /* Override button height for mobile - make touch-friendly */
+  .btn, input.anvil-component, .anvil-dropdown select {
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+  }
+
+  /* Touch-friendly buttons */
+  button, .anvil-button {
+    min-height: 44px !important;
+    padding: 12px 16px !important;
+    font-size: 16px !important;
+    margin: 8px 4px !important;
+  }
+
+  /* Larger checkboxes for touch */
+  input[type="checkbox"] {
+    width: 24px !important;
+    height: 24px !important;
+    margin: 8px !important;
+  }
+
+  /* Better input fields */
+  input[type="text"], 
+  textarea, 
+  select,
+  .anvil-textbox,
+  .anvil-dr
