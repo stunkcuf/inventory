@@ -28,3 +28,9 @@ class MainForm(MainFormTemplate):
   def link_summaries_click(self, **event_args):
     self.content_panel.clear()
     self.content_panel.add_component(SummaryForm())
+
+  @handle("order_filling", "click")
+  def order_filling_click(self, **event_args):
+
+    self.content_panel.clear()
+    self.content_panel.add_component(OrderFillForm())

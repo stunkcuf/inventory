@@ -169,6 +169,26 @@ db_schema:
       type: date
     server: full
     title: inventory_summary_total
+  machform_orders:
+    client: none
+    columns:
+    - admin_ui: {order: 0, width: 200}
+      name: item_name
+      type: string
+    - admin_ui: {order: 1, width: 200}
+      name: quantity
+      type: number
+    - admin_ui: {order: 2, width: 200}
+      name: submitted_by
+      type: string
+    - admin_ui: {order: 3, width: 200}
+      name: date_submitted
+      type: datetime
+    - admin_ui: {order: 4, width: 200}
+      name: status
+      type: string
+    server: full
+    title: machform_orders
   master_order_log:
     client: none
     columns:

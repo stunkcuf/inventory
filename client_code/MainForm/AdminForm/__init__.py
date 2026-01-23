@@ -68,3 +68,11 @@ class AdminForm(AdminFormTemplate):
     main_layout = get_open_form()
     main_layout.content_panel.clear()
     main_layout.content_panel.add_component(ShoppingListForm())
+
+  @handle("OrderHistoryForm", "click")
+  def OrderHistoryForm_click(self, **event_args):
+    """This method is called when the link is clicked"""
+    from ...OrderHistoryForm import OrderHistoryForm
+    main_layout = get_open_form()
+    main_layout.content_panel.clear()
+    main_layout.content_panel.add_component(OrderHistoryForm())

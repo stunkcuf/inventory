@@ -846,3 +846,31 @@ def get_inventory_stats():
     'center_count': center_items,
     'subcategories': categories
   }
+  @anvil.server.http_endpoint("/machform_webhook")
+  def handle_machform_order():
+  # Get the data sent by MachForm
+    data = anvil.server.request.body_params
+
+  # Map MachForm field IDs to your Anvil columns
+  # (You'll need to check your MachForm Field IDs, e.g., 'element_1')
+  item = data.get('element_1') 
+  qty = data.get('element_2')
+  user = data.get('element_3')
+
+  # 1. Record the order in history
+  app_tables.machform_orders.add_row(
+    item_name=item,
+    quantity=int(qty),
+    submitted_by=user,
+    date_submitted=datetime.now(),
+    status="Pending"
+  )
+
+  # 2. Update your Shopping List checkbox automatically
+  # This marks it as 'Ordered' since a form was just filled out
+  row = app_tables.office_calcs.get(Item=item) or app_tables.center_calcs.get(Item=item)
+  if row:
+    row['Ordered'] = True
+    row['Date_Ordered'] = datetime.now().date()
+
+  return anvil.server.HttpResponse(200, "OK")

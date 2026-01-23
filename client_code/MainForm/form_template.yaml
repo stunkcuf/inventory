@@ -2,6 +2,11 @@ components:
 - components:
   - event_bindings: {}
     layout_properties: {}
+    name: order_filling
+    properties: {text: Order Filling}
+    type: Link
+  - event_bindings: {}
+    layout_properties: {}
     name: link_inventory
     properties: {text: Inventory}
     type: Link

@@ -4,6 +4,11 @@ components:
   name: ShoppingListForm
   properties: {text: Shopping List}
   type: Link
+- event_bindings: {}
+  layout_properties: {grid_position: 'ATBBFY,BEYEOK'}
+  name: OrderHistoryForm
+  properties: {text: Order History}
+  type: Link
 - event_bindings: {change: file_loader_1_change}
   layout_properties: {grid_position: 'ATBBFY,JHZGIM'}
   name: file_loader_1
