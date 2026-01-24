@@ -874,3 +874,64 @@ def get_inventory_stats():
     row['Date_Ordered'] = datetime.now().date()
 
   return anvil.server.HttpResponse(200, "OK")
+  
+  @anvil.server.callable
+  def export_order_history_csv(history):
+    """
+  Generate CSV file from order history
+  WHY: CSV module only works server-side in Anvil
+  RETURNS: BlobMedia object with CSV data
+  """
+  import csv
+  from io import StringIO
+  from datetime import datetime
+
+  try:
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow(['Date Ordered', 'Item', 'Category', 'Link'])
+
+    # Data rows
+    for item in history:
+      writer.writerow([
+        str(item.get('Date', '')),
+        item.get('Item', ''),
+        item.get('Source', ''),
+        item.get('Link', '')
+      ])
+
+    # Create downloadable media
+    csv_data = output.getvalue()
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+
+    return anvil.BlobMedia(
+      'text/csv',
+      csv_data.encode(),
+      name=f'order_history_{timestamp}.csv'
+    )
+
+  except Exception as e:
+    print(f"Server CSV export error: {e}")
+    import traceback
+    traceback.print_exc()
+    return None
+
+    @anvil.server.callable
+    def clear_order_history():
+      """
+  Clear all order history (reset Ordered flags and dates)
+  WHY: Allows fresh start for new ordering period
+  RETURNS: Number of items reset
+  """
+  reset_count = 0
+
+  for table in [app_tables.office_calcs, app_tables.center_calcs]:
+    for row in table.search(Ordered=True):
+      row['Ordered'] = False
+      row['Date_Ordered'] = None
+      reset_count += 1
+
+  print(f"Cleared {reset_count} order history records")
+  return reset_count

@@ -22,15 +22,18 @@ components:
       name: dd_date_filter
       properties: {}
       type: DropDown
-    - layout_properties: {}
+    - event_bindings: {}
+      layout_properties: {}
       name: btn_refresh
       properties: {icon: 'fa:refresh', text: Refresh}
       type: Button
-    - layout_properties: {}
+    - event_bindings: {}
+      layout_properties: {}
       name: btn_export
       properties: {icon: 'fa:download', text: Export CSV}
       type: Button
-    - layout_properties: {}
+    - event_bindings: {}
+      layout_properties: {}
       name: btn_clear_history
       properties: {icon: '', text: Clear History}
       type: Button

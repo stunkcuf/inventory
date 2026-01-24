@@ -6,21 +6,15 @@ from datetime import datetime, timedelta
 class OrderHistoryForm(OrderHistoryFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
-
-    # Set up date filter dropdowns
     self.setup_filters()
-
-    # Load order history
     self.refresh_history()
 
   def setup_filters(self):
     """Setup filter dropdowns"""
-    # Category filter
     if hasattr(self, 'dd_category_filter'):
       self.dd_category_filter.items = ["All", "Office", "Center"]
       self.dd_category_filter.selected_value = "All"
 
-    # Date range filter
     if hasattr(self, 'dd_date_filter'):
       self.dd_date_filter.items = [
         "All Time",
@@ -36,19 +30,11 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
     print("Loading order history...")
 
     try:
-      # Get all ordered items
       history = anvil.server.call('get_ordered_history')
-
-      # Apply filters
       filtered_history = self.apply_filters(history)
-
-      # Update repeating panel
       self.repeating_panel_history.items = filtered_history
-
-      # Update summary
       self.update_summary(filtered_history)
 
-      # Show/hide empty message
       if hasattr(self, 'lbl_empty'):
         self.lbl_empty.visible = len(filtered_history) == 0
 
@@ -64,13 +50,11 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
     """Apply category and date filters"""
     filtered = history
 
-    # Category filter
     if hasattr(self, 'dd_category_filter'):
       category = self.dd_category_filter.selected_value
       if category and category != "All":
         filtered = [item for item in filtered if item.get('Source') == category]
 
-    # Date filter
     if hasattr(self, 'dd_date_filter'):
       date_range = self.dd_date_filter.selected_value
       if date_range and date_range != "All Time":
@@ -95,7 +79,7 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
     elif date_range == "This Year":
       return datetime(today.year, 1, 1).date()
 
-    return datetime(2000, 1, 1).date()  # All time
+    return datetime(2000, 1, 1).date()
 
   def update_summary(self, history):
     """Update summary statistics"""
@@ -104,7 +88,6 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
       office = sum(1 for item in history if item.get('Source') == 'Office')
       center = sum(1 for item in history if item.get('Source') == 'Center')
 
-      # Get date range
       if history:
         dates = [item['Date'] for item in history if item.get('Date')]
         if dates:
@@ -131,53 +114,36 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
     """Date filter changed"""
     self.refresh_history()
 
+  @handle("btn_refresh", "click")
   def btn_refresh_click(self, **event_args):
     """Refresh button clicked"""
     self.refresh_history()
     Notification("Order history refreshed", style="info", timeout=2).show()
 
+  @handle("btn_export", "click")
   def btn_export_click(self, **event_args):
-    """Export order history to CSV"""
+    """Export order history to CSV - FIXED: Server-side"""
     try:
-      import csv
-      from io import StringIO
-
       history = self.repeating_panel_history.items
 
       if not history:
         Notification("No history to export", style="warning").show()
         return
 
-      # Create CSV
-      output = StringIO()
-      writer = csv.writer(output)
+      # Call server to generate CSV
+      csv_media = anvil.server.call('export_order_history_csv', history)
 
-      # Header
-      writer.writerow(['Date Ordered', 'Item', 'Category', 'Link'])
-
-      # Data rows
-      for item in history:
-        writer.writerow([
-          item.get('Date', ''),
-          item.get('Item', ''),
-          item.get('Source', ''),
-          item.get('Link', '')
-        ])
-
-      # Download
-      csv_data = output.getvalue()
-      timestamp = datetime.now().strftime('%Y%m%d_%H%M')
-      anvil.media.download(
-        anvil.BlobMedia('text/csv', csv_data.encode(), 
-                        name=f'order_history_{timestamp}.csv')
-      )
-
-      Notification("Order history exported!", style="success").show()
+      if csv_media:
+        anvil.media.download(csv_media)
+        Notification("Order history exported!", style="success").show()
+      else:
+        Notification("Export failed", style="danger").show()
 
     except Exception as e:
       print(f"Export error: {e}")
       Notification(f"Export error: {str(e)}", style="danger").show()
 
+  @handle("btn_clear_history", "click")
   def btn_clear_history_click(self, **event_args):
     """Clear all order history (reset Ordered flags)"""
     if confirm("Clear ALL order history? This will mark all items as not ordered."):
