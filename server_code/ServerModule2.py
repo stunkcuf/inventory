@@ -789,7 +789,7 @@ def sync_inventory_status():
 
   return reset_count
 
-# --- 5. NEW UTILITY FUNCTIONS ---
+# --- 5. UTILITY FUNCTIONS ---
 
 @anvil.server.callable
 def get_import_warnings():
@@ -896,3 +896,86 @@ def clear_order_history():
 
   print(f"Cleared {reset_count} order history records")
   return reset_count
+
+
+@anvil.server.callable
+def save_machform_order(order_data):
+  """Save new MachForm order"""
+  try:
+    app_tables.machform_orders.add_row(
+      date_requested=order_data['date_requested'],
+      requester_name=order_data['requester_name'],
+      location=order_data['location'],
+      category=order_data['category'],
+      items_summary=order_data['items_summary'],
+      total_cost=order_data['total_cost'],
+      status='Pending',
+      date_filled=None,
+      notes=order_data.get('notes', '')
+    )
+    print(f"✅ Saved MachForm order: {order_data['requester_name']}")
+    return True
+  except Exception as e:
+    print(f"❌ Save error: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
+
+
+@anvil.server.callable
+def get_machform_orders(status_filter="All"):
+  """Get MachForm orders with optional status filter"""
+  try:
+    search_args = {}
+    if status_filter and status_filter != "All":
+      search_args['status'] = status_filter
+
+    orders = app_tables.machform_orders.search(
+      tables.order_by('date_requested', ascending=False),
+      **search_args
+    )
+
+    result = []
+    for order in orders:
+      result.append({
+        'order_id': order.get_id(),
+        'date_requested': order['date_requested'],
+        'requester_name': order['requester_name'],
+        'location': order['location'],
+        'category': order['category'],
+        'items_summary': order['items_summary'],
+        'total_cost': order['total_cost'],
+        'status': order['status']
+      })
+
+    print(f"Retrieved {len(result)} orders")
+    return result
+    
+  except Exception as e:
+    print(f"❌ Error getting orders: {e}")
+    import traceback
+    traceback.print_exc()
+    return []
+
+
+@anvil.server.callable
+def update_order_status(order_id, new_status):
+  """Update MachForm order status"""
+  try:
+    order = app_tables.machform_orders.get_by_id(order_id)
+    if order:
+      order['status'] = new_status
+      if new_status == 'Filled':
+        order['date_filled'] = datetime.now().date()
+      else:
+        order['date_filled'] = None
+      print(f"✅ Updated order {order_id} to {new_status}")
+      return True
+    else:
+      print(f"❌ Order {order_id} not found")
+      return False
+  except Exception as e:
+    print(f"❌ Status update error: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
