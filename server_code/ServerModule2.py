@@ -897,7 +897,6 @@ def clear_order_history():
   print(f"Cleared {reset_count} order history records")
   return reset_count
 
-
 @anvil.server.callable
 def save_machform_order(order_data):
   """Save new MachForm order"""
@@ -950,7 +949,7 @@ def get_machform_orders(status_filter="All"):
 
     print(f"Retrieved {len(result)} orders")
     return result
-    
+
   except Exception as e:
     print(f"❌ Error getting orders: {e}")
     import traceback

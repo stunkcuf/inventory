@@ -169,7 +169,7 @@ db_schema:
       type: date
     server: full
     title: inventory_summary_total
-  machform_orders_2:
+  machform_orders:
     client: full
     columns:
     - admin_ui: {order: 0, width: 200}

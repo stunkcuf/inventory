@@ -1,8 +1,8 @@
-from ._anvil_designer import OrderRowTemplateTemplate
+from ._anvil_designer import OrderHistoryRowTemplateTemplate
 from anvil import *
 import anvil.server
 
-class OrderRowTemplate(OrderRowTemplateTemplate):
+class OrderHistoryRowTemplate(OrderHistoryRowTemplateTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
 
@@ -10,11 +10,15 @@ class OrderRowTemplate(OrderRowTemplateTemplate):
     self.label_date.text = str(self.item.get('date_requested', ''))
     self.label_requester.text = self.item.get('requester_name', '')
     self.label_location.text = self.item.get('location', '')
-    self.label_items.text = self.item.get('items_summary', '')[:50] + "..." if len(self.item.get('items_summary', '')) > 50 else self.item.get('items_summary', '')
+
+    # Truncate items text
+    items = self.item.get('items_summary', '')
+    self.label_items.text = items[:50] + "..." if len(items) > 50 else items
+
     self.label_cost.text = f"${self.item.get('total_cost', 0):.2f}"
     self.label_category.text = self.item.get('category', '')
 
-    # Status indicator
+    # Status checkbox
     status = self.item.get('status', 'Pending')
     self.check_filled.checked = (status == 'Filled')
 
