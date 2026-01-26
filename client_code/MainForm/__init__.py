@@ -1,5 +1,6 @@
 from ._anvil_designer import MainFormTemplate
 from anvil import *
+import anvil.users
 import anvil.server
 from .InventoryForm import InventoryForm
 from .AdminForm import AdminForm

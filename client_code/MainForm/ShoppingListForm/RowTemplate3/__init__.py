@@ -1,5 +1,6 @@
 from ._anvil_designer import RowTemplate3Template
 from anvil import *
+import anvil.users
 import anvil.server
 
 class RowTemplate3(RowTemplate3Template):
