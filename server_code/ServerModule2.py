@@ -838,7 +838,7 @@ def get_inventory_stats():
   for item in all_items:
     subcat = item.get('Subcategory', 'Uncategorized')
     categories[subcat] = categories.get(subcat, 0) + 1
-  
+
   return {
     'total_items': total_items,
     'low_stock_count': low_stock,
@@ -846,54 +846,19 @@ def get_inventory_stats():
     'center_count': center_items,
     'subcategories': categories
   }
-  @anvil.server.http_endpoint("/machform_webhook")
-  def handle_machform_order():
-  # Get the data sent by MachForm
-    data = anvil.server.request.body_params
 
-  # Map MachForm field IDs to your Anvil columns
-  # (You'll need to check your MachForm Field IDs, e.g., 'element_1')
-  item = data.get('element_1') 
-  qty = data.get('element_2')
-  user = data.get('element_3')
-
-  # 1. Record the order in history
-  app_tables.machform_orders.add_row(
-    item_name=item,
-    quantity=int(qty),
-    submitted_by=user,
-    date_submitted=datetime.now(),
-    status="Pending"
-  )
-
-  # 2. Update your Shopping List checkbox automatically
-  # This marks it as 'Ordered' since a form was just filled out
-  row = app_tables.office_calcs.get(Item=item) or app_tables.center_calcs.get(Item=item)
-  if row:
-    row['Ordered'] = True
-    row['Date_Ordered'] = datetime.now().date()
-
-  return anvil.server.HttpResponse(200, "OK")
-  
-  @anvil.server.callable
-  def export_order_history_csv(history):
-    """
-  Generate CSV file from order history
-  WHY: CSV module only works server-side in Anvil
-  RETURNS: BlobMedia object with CSV data
-  """
+@anvil.server.callable
+def export_order_history_csv(history):
+  """Generate CSV file from order history"""
   import csv
   from io import StringIO
-  from datetime import datetime
 
   try:
     output = StringIO()
     writer = csv.writer(output)
 
-    # Header
     writer.writerow(['Date Ordered', 'Item', 'Category', 'Link'])
 
-    # Data rows
     for item in history:
       writer.writerow([
         str(item.get('Date', '')),
@@ -902,7 +867,6 @@ def get_inventory_stats():
         item.get('Link', '')
       ])
 
-    # Create downloadable media
     csv_data = output.getvalue()
     timestamp = datetime.now().strftime('%Y%m%d_%H%M')
 
@@ -918,13 +882,10 @@ def get_inventory_stats():
     traceback.print_exc()
     return None
 
-    @anvil.server.callable
-    def clear_order_history():
-      """
-  Clear all order history (reset Ordered flags and dates)
-  WHY: Allows fresh start for new ordering period
-  RETURNS: Number of items reset
-  """
+
+@anvil.server.callable
+def clear_order_history():
+  """Clear all order history"""
   reset_count = 0
 
   for table in [app_tables.office_calcs, app_tables.center_calcs]:
