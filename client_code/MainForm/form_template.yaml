@@ -20,6 +20,10 @@ components:
     name: link_admin
     properties: {text: Admin/Upload}
     type: Link
+  - layout_properties: {}
+    name: link_logout
+    properties: {align: right, icon: 'fa:sign-out', text: Logout}
+    type: Link
   layout_properties: {slot: ''}
   name: navbar_links
   properties: {align: left, border: '1'}

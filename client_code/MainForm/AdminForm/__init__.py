@@ -64,13 +64,23 @@ class AdminForm(AdminFormTemplate):
 
   def link_order_history_click(self, **event_args):
     """Navigate to Order History"""
-    print("AdminForm: Order History link clicked!")  # DEBUG
+    print("AdminForm: Order History link clicked!")
     try:
       main_form = get_open_form()
-      print(f"Got main form: {main_form}")  # DEBUG
+      print(f"Got main form: {main_form}")
       main_form.link_order_history_click()
-      print("Called main form navigation")  # DEBUG
+      print("Called main form navigation")
     except Exception as e:
-      print(f"Navigation error: {e}")  # DEBUG
-      import traceback
-      traceback.print_exc()
+      print(f"Navigation error: {e}")
+
+  def link_audit_logs_click(self, **event_args):
+    """Navigate to Audit Logs - Admin Only"""
+    try:
+      from ..AuditLogForm import AuditLogForm
+      main_layout = get_open_form()
+      main_layout.content_panel.clear()
+      main_layout.content_panel.add_component(AuditLogForm())
+      print("Navigated to Audit Logs")
+    except Exception as e:
+      print(f"Audit logs navigation error: {e}")
+      Notification(f"Error loading audit logs: {str(e)}", style="danger").show()

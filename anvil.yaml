@@ -314,6 +314,9 @@ db_schema:
     - admin_ui: {order: 5, width: 200}
       name: confirmed_email
       type: bool
+    - admin_ui: {order: 6, width: 200}
+      name: signed_up
+      type: datetime
     server: full
     title: Users
   wm_stock_history:
@@ -350,7 +353,7 @@ services:
 - client_config: {}
   server_config: {file_table: files}
   source: /runtime/services/anvil/files.yml
-- client_config: {allow_signup: false, confirm_email: true, enable_automatically: true, require_secure_passwords: true, use_email: true}
+- client_config: {allow_signup: true, confirm_email: true, enable_automatically: false, require_secure_passwords: true, use_email: true}
   server_config:
     email_content:
       confirm_address:

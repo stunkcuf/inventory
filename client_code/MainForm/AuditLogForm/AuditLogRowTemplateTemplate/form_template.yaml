@@ -1,0 +1,27 @@
+components:
+- layout_properties: {grid_position: 'YEMCMV,ZUTGOM'}
+  name: label_timestamp
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'YEMCMV,QULIWV'}
+  name: label_user
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'YEMCMV,QQYJYL'}
+  name: label_action
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'YEMCMV,SMIVVC'}
+  name: label_table
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'YEMCMV,ETZXGX'}
+  name: label_item
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'YEMCMV,YPXULV'}
+  name: label_details
+  properties: {}
+  type: Label
+container: {type: ColumnPanel}
+is_package: true

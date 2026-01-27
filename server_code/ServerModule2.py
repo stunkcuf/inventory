@@ -979,3 +979,63 @@ def update_order_status(order_id, new_status):
     import traceback
     traceback.print_exc()
     return False
+
+    @anvil.server.callable
+def log_audit(action, table_name, item_name, old_value=None, new_value=None, details=None):
+  """
+  Log an audit entry
+  USAGE: log_audit('UPDATE', 'inventory', 'Paper Towels', '10', '25', 'On_Hand changed')
+  """
+  try:
+    user = anvil.users.get_user()
+    user_email = user['email'] if user else 'System'
+    
+    app_tables.audit_logs.add_row(
+      timestamp=datetime.now(),
+      user_email=user_email,
+      action=action,
+      table_name=table_name,
+      item_name=item_name,
+      old_value=str(old_value) if old_value is not None else None,
+      new_value=str(new_value) if new_value is not None else None,
+      details=details
+    )
+    
+    print(f"📝 Audit: {user_email} - {action} - {table_name}/{item_name}")
+    
+  except Exception as e:
+    print(f"Audit logging error: {e}")
+    # Don't fail the main operation if audit logging fails
+
+
+@anvil.server.callable
+def get_audit_logs(limit=100, table_filter=None):
+  """Get recent audit logs"""
+  try:
+    search_args = {}
+    if table_filter and table_filter != "All":
+      search_args['table_name'] = table_filter
+    
+    logs = app_tables.audit_logs.search(
+      tables.order_by('timestamp', ascending=False),
+      **search_args
+    )
+    
+    result = []
+    for log in list(logs)[:limit]:
+      result.append({
+        'timestamp': log['timestamp'],
+        'user_email': log['user_email'],
+        'action': log['action'],
+        'table_name': log['table_name'],
+        'item_name': log['item_name'],
+        'old_value': log['old_value'],
+        'new_value': log['new_value'],
+        'details': log['details']
+      })
+    
+    return result
+    
+  except Exception as e:
+    print(f"Error getting audit logs: {e}")
+    return []

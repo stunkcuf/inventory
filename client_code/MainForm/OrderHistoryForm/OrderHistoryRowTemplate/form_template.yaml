@@ -1,21 +1,22 @@
 components:
 - components:
   - components:
-    - name: lbl_date
+    - layout_properties: {col_xs: 0, width_xs: 3}
+      name: label_date
       properties: {}
       type: Label
-    - layout_properties: {col_xs: 3, row: HCNMLK, width_xs: 3}
-      name: lbl_item
+    - layout_properties: {col_xs: 3, row: null, width_xs: 3}
+      name: label_item
       properties: {}
       type: Label
-    - layout_properties: {col_xs: 6, row: HCNMLK, width_xs: 3}
-      name: lbl_category
+    - layout_properties: {col_xs: 6, row: null, width_xs: 3}
+      name: label_category
       properties: {}
       type: Label
-    - layout_properties: {col_xs: 9, row: HCNMLK, width_xs: 3}
-      name: link_url
-      properties: {}
-      type: Label
+    - layout_properties: {col_xs: 9, row: null, width_xs: 3}
+      name: link_view
+      properties: {text: 🔗 View}
+      type: Link
     layout_properties: {full_width_row: true, grid_position: 'QOHSIU,KYODKA'}
     name: grid_panel_1
     properties: {}
