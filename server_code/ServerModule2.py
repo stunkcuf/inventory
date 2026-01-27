@@ -730,8 +730,8 @@ def get_shopping_list():
 @anvil.server.callable
 def check_ordered(item_name, category, status):
   """
-  IMPROVED: Better error handling and feedback
-  WHY: Prevents silent failures, handles duplicates properly
+  IMPROVED: Better error handling and feedback + AUDIT LOGGING
+  WHY: Prevents silent failures, handles duplicates properly, tracks all changes
   """
   table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
 
@@ -744,8 +744,19 @@ def check_ordered(item_name, category, status):
 
   # Update all matching rows (handles duplicates if they exist)
   for row in matching_rows:
+    old_status = row['Ordered']  # Save old value for audit
     row['Ordered'] = status
     row['Date_Ordered'] = datetime.now().date() if status else None
+
+    # AUDIT LOG
+    log_audit(
+      action='UPDATE',
+      table_name=f'{category.lower()}_calcs',
+      item_name=item_name,
+      old_value=f"Ordered: {old_status}",
+      new_value=f"Ordered: {status}",
+      details=f"Shopping list: Marked as {'ordered' if status else 'not ordered'}"
+    )
 
   if len(matching_rows) > 1:
     print(f"Warning: Found {len(matching_rows)} duplicate entries for '{item_name}'")
