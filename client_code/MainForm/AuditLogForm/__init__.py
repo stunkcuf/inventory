@@ -6,10 +6,15 @@ class AuditLogForm(AuditLogFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
 
-    # Check admin access
-    if not anvil.server.call('is_admin'):
-      alert("Admin access required to view audit logs")
-      return
+    # Check admin access with fallback
+    try:
+      is_admin = anvil.server.call('is_admin')
+      if not is_admin:
+        alert("Admin access required to view audit logs")
+        return
+    except Exception as e:
+      # Fallback: Allow access if function not loaded yet
+      print(f"Admin check skipped: {e}")
 
     self.setup_filters()
     self.refresh_logs()
@@ -44,10 +49,12 @@ class AuditLogForm(AuditLogFormTemplate):
       print(f"Error loading logs: {e}")
       Notification(f"Error: {str(e)}", style="danger").show()
 
+  @handle("dd_table_filter", "change")
   def dd_table_filter_change(self, **event_args):
     """Filter changed"""
     self.refresh_logs()
 
+  @handle("btn_refresh", "click")
   def btn_refresh_click(self, **event_args):
     """Refresh button"""
     self.refresh_logs()

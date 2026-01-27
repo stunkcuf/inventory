@@ -73,6 +73,7 @@ class AdminForm(AdminFormTemplate):
     except Exception as e:
       print(f"Navigation error: {e}")
 
+  @handle("link_audit_logs", "click")
   def link_audit_logs_click(self, **event_args):
     """Navigate to Audit Logs - Admin Only"""
     try:

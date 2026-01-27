@@ -20,8 +20,13 @@ class MainForm(MainFormTemplate):
       alert("You must log in to access the inventory system")
       return
 
-    # Check user role
-    self.user_role = anvil.server.call('get_current_user_role')
+    # Check user role with fallback
+    try:
+      self.user_role = anvil.server.call('get_current_user_role')
+    except:
+      # Fallback: Check role directly from user table
+      self.user_role = self.user.get('role', 'staff')
+      print(f"Using fallback role check: {self.user_role}")
 
     # STAFF: Only see Inventory and Order Filling
     if self.user_role != 'admin':

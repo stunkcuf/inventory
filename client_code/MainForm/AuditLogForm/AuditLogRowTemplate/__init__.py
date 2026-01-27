@@ -22,6 +22,5 @@ class AuditLogRowTemplate(AuditLogRowTemplateTemplate):
       self.card_row.background = '#ffebee'  # Red
     elif action == 'IMPORT':
       self.card_row.background = '#e3f2fd'  # Blue
-```
 
 

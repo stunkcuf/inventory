@@ -957,85 +957,151 @@ def get_machform_orders(status_filter="All"):
     traceback.print_exc()
     return []
 
-
-@anvil.server.callable
-def update_order_status(order_id, new_status):
-  """Update MachForm order status"""
-  try:
-    order = app_tables.machform_orders.get_by_id(order_id)
-    if order:
-      order['status'] = new_status
-      if new_status == 'Filled':
-        order['date_filled'] = datetime.now().date()
+  @anvil.server.callable
+  def update_order_status(order_id, new_status):
+    """Update MachForm order status"""
+    try:
+      order = app_tables.machform_orders.get_by_id(order_id)
+      if order:
+        order['status'] = new_status
+        if new_status == 'Filled':
+          order['date_filled'] = datetime.now().date()
+        else:
+          order['date_filled'] = None
+        print(f"✅ Updated order {order_id} to {new_status}")
+        return True
       else:
-        order['date_filled'] = None
-      print(f"✅ Updated order {order_id} to {new_status}")
-      return True
-    else:
-      print(f"❌ Order {order_id} not found")
+        print(f"❌ Order {order_id} not found")
+        return False
+    except Exception as e:
+      print(f"❌ Status update error: {e}")
+      import traceback
+      traceback.print_exc()
       return False
-  except Exception as e:
-    print(f"❌ Status update error: {e}")
-    import traceback
-    traceback.print_exc()
-    return False
-
-    @anvil.server.callable
-def log_audit(action, table_name, item_name, old_value=None, new_value=None, details=None):
-  """
-  Log an audit entry
-  USAGE: log_audit('UPDATE', 'inventory', 'Paper Towels', '10', '25', 'On_Hand changed')
-  """
-  try:
+  
+  
+  @anvil.server.callable
+  def log_audit(action, table_name, item_name, old_value=None, new_value=None, details=None):
+    """
+    Log an audit entry
+    USAGE: log_audit('UPDATE', 'inventory', 'Paper Towels', '10', '25', 'On_Hand changed')
+    """
+    try:
+      user = anvil.users.get_user()
+      user_email = user['email'] if user else 'System'
+      
+      app_tables.audit_logs.add_row(
+        timestamp=datetime.now(),
+        user_email=user_email,
+        action=action,
+        table_name=table_name,
+        item_name=item_name,
+        old_value=str(old_value) if old_value is not None else None,
+        new_value=str(new_value) if new_value is not None else None,
+        details=details
+      )
+      
+      print(f"📝 Audit: {user_email} - {action} - {table_name}/{item_name}")
+      
+    except Exception as e:
+      print(f"Audit logging error: {e}")
+      # Don't fail the main operation if audit logging fails
+  
+  
+  @anvil.server.callable
+  def get_audit_logs(limit=100, table_filter=None):
+    """Get recent audit logs"""
+    try:
+      search_args = {}
+      if table_filter and table_filter != "All":
+        search_args['table_name'] = table_filter
+      
+      logs = app_tables.audit_logs.search(
+        tables.order_by('timestamp', ascending=False),
+        **search_args
+      )
+      
+      result = []
+      for log in list(logs)[:limit]:
+        result.append({
+          'timestamp': log['timestamp'],
+          'user_email': log['user_email'],
+          'action': log['action'],
+          'table_name': log['table_name'],
+          'item_name': log['item_name'],
+          'old_value': log['old_value'],
+          'new_value': log['new_value'],
+          'details': log['details']
+        })
+      
+      return result
+      
+    except Exception as e:
+      print(f"Error getting audit logs: {e}")
+      return []
+  
+  
+  @anvil.server.callable
+  def get_current_user_role():
+    """Get the current user's role"""
     user = anvil.users.get_user()
-    user_email = user['email'] if user else 'System'
-    
-    app_tables.audit_logs.add_row(
-      timestamp=datetime.now(),
-      user_email=user_email,
-      action=action,
-      table_name=table_name,
-      item_name=item_name,
-      old_value=str(old_value) if old_value is not None else None,
-      new_value=str(new_value) if new_value is not None else None,
-      details=details
-    )
-    
-    print(f"📝 Audit: {user_email} - {action} - {table_name}/{item_name}")
-    
-  except Exception as e:
-    print(f"Audit logging error: {e}")
-    # Don't fail the main operation if audit logging fails
-
-
-@anvil.server.callable
-def get_audit_logs(limit=100, table_filter=None):
-  """Get recent audit logs"""
-  try:
-    search_args = {}
-    if table_filter and table_filter != "All":
-      search_args['table_name'] = table_filter
-    
-    logs = app_tables.audit_logs.search(
-      tables.order_by('timestamp', ascending=False),
-      **search_args
-    )
-    
-    result = []
-    for log in list(logs)[:limit]:
-      result.append({
-        'timestamp': log['timestamp'],
-        'user_email': log['user_email'],
-        'action': log['action'],
-        'table_name': log['table_name'],
-        'item_name': log['item_name'],
-        'old_value': log['old_value'],
-        'new_value': log['new_value'],
-        'details': log['details']
-      })
-    
-    return result
-    
-  except Exception as e:
-    print(f"Error getting audit logs: {e}")
-    return []
+    if not user:
+      return None
+    return user.get('role', 'staff')  # Default to 'staff' if no role set
+  
+  
+  @anvil.server.callable
+  def is_admin():
+    """Check if current user is admin"""
+    role = get_current_user_role()
+    return role == 'admin'
+  
+  
+  @anvil.server.callable
+  def require_admin():
+    """Raise exception if user is not admin"""
+    if not is_admin():
+      raise Exception("Admin access required for this action")
+  
+  
+  @anvil.server.callable
+  def update_order_fulfillment(order_id, new_status, notes):
+    """
+    Update order fulfillment status
+    WHY: Track which orders are complete/partial/pending
+    """
+    try:
+      user = anvil.users.get_user()
+      order = app_tables.machform_orders.get_by_id(order_id)
+      
+      if order:
+        old_status = order['status']
+        order['status'] = new_status
+        order['notes'] = notes
+        
+        # Mark as fulfilled if status is Filled
+        if new_status == 'Filled':
+          order['fulfilled_by'] = user['email']
+          order['fulfilled_date'] = datetime.now().date()
+        
+        # Audit log
+        log_audit(
+          action='UPDATE',
+          table_name='machform_orders',
+          item_name=order['requester_name'],
+          old_value=f"Status: {old_status}",
+          new_value=f"Status: {new_status}",
+          details=f"Order fulfillment updated by {user['email']}"
+        )
+        
+        print(f"✅ Updated order {order_id} to {new_status}")
+        return True
+      else:
+        print(f"❌ Order {order_id} not found")
+        return False
+        
+    except Exception as e:
+      print(f"❌ Update error: {e}")
+      import traceback
+      traceback.print_exc()
+      return False
