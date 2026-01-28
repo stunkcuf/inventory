@@ -3,6 +3,7 @@ from anvil import *
 import anvil.users
 import anvil.server
 import plotly.graph_objects as go
+from .helpers import format_currency, show_info, log_error
 
 class SummaryForm(SummaryFormTemplate):
   def __init__(self, **properties):
@@ -17,7 +18,7 @@ class SummaryForm(SummaryFormTemplate):
         self.dd_summary_selector.items = options
         self.dd_summary_selector.selected_value = 'summary_2025'
     except Exception as e:
-      print(f"Error loading summary options: {e}")
+      log_error("load_summary_options", e)
 
   def dd_summary_selector_change(self, **event_args):
     self.refresh_summary()
@@ -44,20 +45,18 @@ class SummaryForm(SummaryFormTemplate):
         }
         title_prefix = title_map.get(selected_table, selected_table)
 
-        # Create bar chart
         self.plot_spending.data = go.Bar(
           x=locations, 
           y=costs,
           marker_color='#2196F3',
-          text=[f'${c:,.2f}' for c in costs],
+          text=[format_currency(c) for c in costs],
           textposition='auto',
           hovertemplate='<b>%{x}</b><br>Total: $%{y:,.2f}<extra></extra>'
         )
 
-        # MOBILE RESPONSIVE LAYOUT
         self.plot_spending.layout = {
           'title': {
-            'text': f"{title_prefix} Spending<br><sup>Total: ${total_spending:,.2f}</sup>",
+            'text': f"{title_prefix} Spending<br><sup>Total: {format_currency(total_spending)}</sup>",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 18}
@@ -66,7 +65,7 @@ class SummaryForm(SummaryFormTemplate):
             'title': 'Location',
             'tickangle': -45,
             'tickfont': {'size': 11},
-            'automargin': True  # Prevents label cutoff on mobile
+            'automargin': True
           },
           'yaxis': {
             'title': 'Cost ($)',
@@ -76,16 +75,15 @@ class SummaryForm(SummaryFormTemplate):
           'plot_bgcolor': '#f5f5f5',
           'paper_bgcolor': 'white',
           'margin': {'t': 100, 'b': 80, 'l': 60, 'r': 20},
-          'height': None,  # Let it auto-size
+          'height': None,
           'showlegend': False,
-          'autosize': True,  # KEY: Makes chart responsive
-          'responsive': True  # KEY: Resizes on window change
+          'autosize': True,
+          'responsive': True
         }
 
-        print(f"Summary refreshed: {len(locations)} locations, ${total_spending:,.2f} total")
+        print(f"Summary refreshed: {len(locations)} locations, {format_currency(total_spending)} total")
 
       else:
-        # Show empty state
         self.plot_spending.data = []
         self.plot_spending.layout = {
           'title': "No data available",
@@ -107,9 +105,7 @@ class SummaryForm(SummaryFormTemplate):
         }
 
     except Exception as e:
-      print(f"Error refreshing summary: {e}")
-      import traceback
-      traceback.print_exc()
+      log_error("refresh_summary", e)
 
       self.plot_spending.data = []
       self.plot_spending.layout = {
@@ -134,4 +130,4 @@ class SummaryForm(SummaryFormTemplate):
   def btn_refresh_click(self, **event_args):
     """Manual refresh button"""
     self.refresh_summary()
-    Notification("Summary refreshed", style="info", timeout=2).show()
+    show_info("Summary refreshed")

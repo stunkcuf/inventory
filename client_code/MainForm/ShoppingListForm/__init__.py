@@ -4,6 +4,13 @@ import anvil.users
 import anvil.server
 import anvil.js
 from datetime import datetime
+from .helpers import (
+calculate_list_totals, 
+calculate_quantity_needed,
+format_currency,
+show_info,
+log_error
+)
 
 class ShoppingListForm(ShoppingListFormTemplate):
   def __init__(self, **properties):
@@ -27,35 +34,19 @@ class ShoppingListForm(ShoppingListFormTemplate):
     if hasattr(self, 'label_empty'):
       self.label_empty.visible = len(items) == 0
 
-    # Update summary
     self.update_summary()
 
   def update_summary(self):
-    """Update summary from current items - calculates total cost with quantities"""
+    """Update summary using helper calculations"""
     if hasattr(self, 'label_summary'):
       items = self.repeating_panel_1.items
-
-      total_items = len(items)
-      ordered_count = sum(1 for item in items if item.get('Ordered', False))
-      pending_count = total_items - ordered_count
-
-      # Calculate total cost = price × quantity needed
-      pending_cost = 0
-      for item in items:
-        if not item.get('Ordered', False):  # Only pending items
-          price = item.get('Price', 0)
-          on_hand = item.get('On_Hand', 0)
-          min_amt = item.get('Minimum_Amt', 0)
-          qty_needed = max(0, min_amt - on_hand)
-
-          # Multiply price by quantity needed
-          pending_cost += (price * qty_needed)
+      stats = calculate_list_totals(items)
 
       self.label_summary.text = (
-        f"Total: {total_items} items | "
-        f"Est. Cost: ${pending_cost:,.2f} | "
-        f"Ordered: {ordered_count} | "
-        f"Pending: {pending_count}"
+        f"Total: {stats['total_items']} items | "
+        f"Est. Cost: {format_currency(stats['pending_cost'])} | "
+        f"Ordered: {stats['ordered_count']} | "
+        f"Pending: {stats['pending_count']}"
       )
 
   def print_button_click(self, **event_args):
@@ -69,18 +60,7 @@ class ShoppingListForm(ShoppingListFormTemplate):
         alert("No items to print!")
         return
 
-      total_items = len(items)
-
-      # Calculate total cost with quantities
-      total_cost = 0
-      for item in items:
-        price = item.get('Price', 0)
-        on_hand = item.get('On_Hand', 0)
-        min_amt = item.get('Minimum_Amt', 0)
-        qty_needed = max(0, min_amt - on_hand)
-        total_cost += (price * qty_needed)
-
-      pending = sum(1 for item in items if not item.get('Ordered', False))
+      stats = calculate_list_totals(items)
 
       html = f"""
 <!DOCTYPE html>
@@ -134,9 +114,9 @@ class ShoppingListForm(ShoppingListFormTemplate):
   <h1>Shopping List - {datetime.now().strftime('%B %d, %Y')}</h1>
   
   <div class="info">
-    <strong>Total Items:</strong> {total_items} | 
-    <strong>Est. Cost:</strong> ${total_cost:,.2f} | 
-    <strong>Pending:</strong> {pending}
+    <strong>Total Items:</strong> {stats['total_items']} | 
+    <strong>Est. Cost:</strong> {format_currency(stats['total_cost'])} | 
+    <strong>Pending:</strong> {stats['pending_count']}
   </div>
   
   <button class="no-print" onclick="window.print()" style="padding: 10px 20px; font-size: 16px; margin-bottom: 10px;">
@@ -158,7 +138,7 @@ class ShoppingListForm(ShoppingListFormTemplate):
       for item in items:
         on_hand = item.get('On_Hand', 0)
         min_amt = item.get('Minimum_Amt', 0)
-        qty = max(0, min_amt - on_hand)
+        qty = calculate_quantity_needed(on_hand, min_amt)
         price = item.get('Price', 0)
         item_total = price * qty
         ordered = item.get('Ordered', False)
@@ -190,13 +170,11 @@ class ShoppingListForm(ShoppingListFormTemplate):
       win.document.close()
 
     except Exception as e:
-      print(f"Print error: {e}")
-      import traceback
-      traceback.print_exc()
+      log_error("print_button_click", e)
       alert(f"Error: {str(e)}")
 
   def refresh_button_click(self, **event_args):
     """Manual refresh button"""
     print("Refresh button clicked!")
     self.refresh_list()
-    Notification("Shopping list refreshed", style="info", timeout=2).show()
+    show_info("Shopping list refreshed")

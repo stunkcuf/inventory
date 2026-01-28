@@ -5,6 +5,7 @@ import anvil.server
 import anvil.tables as tables
 import anvil.tables.query as q
 from anvil.tables import app_tables
+from ..MainForm.helpers import show_success, show_error, show_warning, log_error
 
 class AdminForm(AdminFormTemplate):
   def __init__(self, **properties):
@@ -41,19 +42,19 @@ class AdminForm(AdminFormTemplate):
           alert(msg, title="Import Complete")
         else:
           error_msg = result.get('error', 'Unknown error')
-          Notification(f"Import failed: {error_msg}", style="danger", timeout=10).show()
+          show_error(f"Import failed: {error_msg}", timeout=10)
 
       except Exception as e:
-        Notification(f"Import error: {str(e)}", style="danger").show()
-        print(f"Import exception: {e}")
+        log_error("file_loader_1_change", e)
+        show_error(f"Import error: {str(e)}")
     else:
-      Notification("Please select a file to upload.", style="warning").show()
+      show_warning("Please select a file to upload.")
 
   def btn_clear_inventory_click(self, **event_args):
     """Clear all inventory data"""
     if confirm("Are you sure you want to clear ALL inventory data?"):
       app_tables.inventory.delete_all_rows()
-      Notification("Inventory cleared.", style="success").show()
+      show_success("Inventory cleared.")
 
   def shopping_list_link_click(self, **event_args):
     """Navigate to Shopping List"""
@@ -71,7 +72,7 @@ class AdminForm(AdminFormTemplate):
       main_form.link_order_history_click()
       print("Called main form navigation")
     except Exception as e:
-      print(f"Navigation error: {e}")
+      log_error("link_order_history_click", e)
 
   @handle("link_audit_logs", "click")
   def link_audit_logs_click(self, **event_args):
@@ -83,5 +84,5 @@ class AdminForm(AdminFormTemplate):
       main_layout.content_panel.add_component(AuditLogForm())
       print("Navigated to Audit Logs")
     except Exception as e:
-      print(f"Audit logs navigation error: {e}")
-      Notification(f"Error loading audit logs: {str(e)}", style="danger").show()
+      log_error("link_audit_logs_click", e)
+      show_error(f"Error loading audit logs: {str(e)}")
