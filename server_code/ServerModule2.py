@@ -109,21 +109,33 @@ def get_excel_column_index(df, column_name):
 
 # --- 2. DATA LOADERS ---
 @anvil.server.callable
-def get_inventory_fast(category="All", search_query=None, subcategory=None):
-  search_args = {}
+def get_inventory_fast(category="All", search_query=None, subcategory="All"):
+  rows = app_tables.inventory.search()
+
+  # 1. Filter by Category/Subcat
   if category and category != "All":
-    search_args['Category'] = category
+    rows = [r for r in rows if r['Category'] == category]
   if subcategory and subcategory != "All":
-    search_args['Subcategory'] = subcategory
+    rows = [r for r in rows if r.get('Subcategory') == subcategory]
 
-  if search_query and search_query.strip() != "":
-    # Split the search into individual words (e.g., "black", "pen")
-    # This finds items that contain BOTH words, in any order.
-    words = search_query.strip().split()
-    search_args['Item'] = q.all_of(*[q.ilike(f"%{w}%") for w in words])
+    # 2. TOKENIZED SEARCH
+  if search_query and search_query.strip():
+    # TOKENIZING: Split "Black Pens" into ["black", "pen"]
+    # .rstrip('s') handles the plural "s"
+    tokens = [t.lower().rstrip('s') for t in search_query.split()]
 
-  # We search ONLY the 'Item' column to stop "Black Pens" from pulling random bags
-  return app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
+    filtered = []
+    for r in rows:
+      item_name = (r['Item'] or "").lower()
+
+      # Check if EVERY token is present in the name
+      # This is why 'Black Tape' will fail (it has 'black' but no 'pen')
+      if all(token in item_name for token in tokens):
+        filtered.append(r)
+    return filtered
+
+  return rows
+  
 @anvil.server.callable
 def get_subcategories(category="All"):
   """UNCHANGED - Your original code works perfectly"""
