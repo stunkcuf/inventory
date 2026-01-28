@@ -5,7 +5,6 @@ import anvil.server
 import anvil.tables as tables
 import anvil.tables.query as q
 from anvil.tables import app_tables
-from ..MainForm.helpers import show_success, show_error, show_warning, log_error
 
 class AdminForm(AdminFormTemplate):
   def __init__(self, **properties):
@@ -42,37 +41,30 @@ class AdminForm(AdminFormTemplate):
           alert(msg, title="Import Complete")
         else:
           error_msg = result.get('error', 'Unknown error')
-          show_error(f"Import failed: {error_msg}", timeout=10)
+          Notification(f"Import failed: {error_msg}", style="danger", timeout=10).show()
 
       except Exception as e:
-        log_error("file_loader_1_change", e)
-        show_error(f"Import error: {str(e)}")
+        print(f"❌ Error in file_loader_1_change: {e}")
+        Notification(f"Import error: {str(e)}", style="danger").show()
     else:
-      show_warning("Please select a file to upload.")
+      Notification("Please select a file to upload.", style="warning").show()
 
   def btn_clear_inventory_click(self, **event_args):
     """Clear all inventory data"""
     if confirm("Are you sure you want to clear ALL inventory data?"):
       app_tables.inventory.delete_all_rows()
-      show_success("Inventory cleared.")
+      Notification("Inventory cleared.", style="success").show()
 
   def shopping_list_link_click(self, **event_args):
     """Navigate to Shopping List"""
-    from ..ShoppingListForm import ShoppingListForm
-    main_layout = get_open_form()
-    main_layout.content_panel.clear()
-    main_layout.content_panel.add_component(ShoppingListForm())
+    main_form = get_open_form()
+    main_form.link_shopping_list_click()
 
   def link_order_history_click(self, **event_args):
     """Navigate to Order History"""
     print("AdminForm: Order History link clicked!")
-    try:
-      main_form = get_open_form()
-      print(f"Got main form: {main_form}")
-      main_form.link_order_history_click()
-      print("Called main form navigation")
-    except Exception as e:
-      log_error("link_order_history_click", e)
+    main_form = get_open_form()
+    main_form.link_order_history_click()
 
   @handle("link_audit_logs", "click")
   def link_audit_logs_click(self, **event_args):
@@ -84,5 +76,5 @@ class AdminForm(AdminFormTemplate):
       main_layout.content_panel.add_component(AuditLogForm())
       print("Navigated to Audit Logs")
     except Exception as e:
-      log_error("link_audit_logs_click", e)
-      show_error(f"Error loading audit logs: {str(e)}")
+      print(f"❌ Error in link_audit_logs_click: {e}")
+      Notification(f"Error loading audit logs: {str(e)}", style="danger").show()

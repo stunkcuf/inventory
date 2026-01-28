@@ -4,14 +4,13 @@ import anvil.users
 import anvil.server
 from anvil.tables import app_tables
 import anvil.tables as tables
-from .helpers import setup_category_dropdown, CATEGORIES, show_info
 
 class InventoryForm(InventoryFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
     self.repeating_panel_1.set_event_handler('x-refresh', self.refresh_inventory)
 
-    setup_category_dropdown(self.drop_down_filter, include_all=True)
+    self.drop_down_filter.items = [("All Inventory", "All"), ("Center", "Center"), ("Office", "Office")]
     self.load_subcategories()
     self.refresh_inventory()
 
@@ -44,47 +43,34 @@ class InventoryForm(InventoryFormTemplate):
     self.refresh_inventory()
 
   def button_add_click(self, **event_args):
-    n_box = TextBox()
-    oh_box = TextBox(type="number")
-    ma_box = TextBox(type="number")
-    cat_dd = DropDown(items=CATEGORIES)
+    n_box, oh_box, ma_box = TextBox(), TextBox(type="number"), TextBox(type="number")
+    cat_dd = DropDown(items=["Office", "Center"])
     subcat_box = TextBox(placeholder="Optional subcategory")
 
     layout = LinearPanel()
-    layout.add_component(Label(text="Item:"))
-    layout.add_component(n_box)
-    layout.add_component(Label(text="Category:"))
-    layout.add_component(cat_dd)
-    layout.add_component(Label(text="Subcategory:"))
-    layout.add_component(subcat_box)
-    layout.add_component(Label(text="On Hand:"))
-    layout.add_component(oh_box)
-    layout.add_component(Label(text="Min Amt:"))
-    layout.add_component(ma_box)
+    for label, comp in [("Item:", n_box), ("Category:", cat_dd), ("Subcategory:", subcat_box), ("On Hand:", oh_box), ("Min Amt:", ma_box)]:
+      layout.add_component(Label(text=label))
+      layout.add_component(comp)
 
-    result = alert(content=layout, title="Add New Product", buttons=[("Save", True), ("Cancel", False)], large=True)
-
-    if result and n_box.text:
-      oh = int(oh_box.text or 0)
-      ma = int(ma_box.text or 0)
-      app_tables.inventory.add_row(
-        Item=n_box.text, 
-        Category=cat_dd.selected_value,
-        Subcategory=subcat_box.text or None,
-        On_Hand=oh, 
-        Minimum_Amt=ma, 
-        To_Order=max(0, ma - oh)
-      )
-      self.refresh_inventory()
-      self.load_subcategories()
-      show_info("Item added successfully")
+    if alert(content=layout, title="Add New Product", buttons=[("Save", True), ("Cancel", False)], large=True):
+      if n_box.text:
+        oh, ma = int(oh_box.text or 0), int(ma_box.text or 0)
+        app_tables.inventory.add_row(
+          Item=n_box.text, 
+          Category=cat_dd.selected_value,
+          Subcategory=subcat_box.text or None,
+          On_Hand=oh, 
+          Minimum_Amt=ma, 
+          To_Order=max(0, ma-oh)
+        )
+        self.refresh_inventory()
+        self.load_subcategories()
 
   def button_update_stock_click(self, **event_args):
     all_items = app_tables.inventory.search(tables.order_by("Item"))
     item_sel = DropDown(items=[(r['Item'], r) for r in all_items])
-    oh_box = TextBox(type="number")
-    ma_box = TextBox(type="number")
-    cat_dd = DropDown(items=CATEGORIES)
+    oh_box, ma_box = TextBox(type="number"), TextBox(type="number")
+    cat_dd = DropDown(items=["Office", "Center"])
     subcat_box = TextBox(placeholder="Optional subcategory")
 
     def selector_change(**event_args):
@@ -100,31 +86,20 @@ class InventoryForm(InventoryFormTemplate):
       selector_change()
 
     layout = LinearPanel()
-    layout.add_component(Label(text="Select:"))
-    layout.add_component(item_sel)
-    layout.add_component(Label(text="Category:"))
-    layout.add_component(cat_dd)
-    layout.add_component(Label(text="Subcategory:"))
-    layout.add_component(subcat_box)
-    layout.add_component(Label(text="On Hand:"))
-    layout.add_component(oh_box)
-    layout.add_component(Label(text="Min Amt:"))
-    layout.add_component(ma_box)
+    for label, comp in [("Select:", item_sel), ("Category:", cat_dd), ("Subcategory:", subcat_box), ("On Hand:", oh_box), ("Min Amt:", ma_box)]:
+      layout.add_component(Label(text=label))
+      layout.add_component(comp)
 
-    result = alert(content=layout, title="Update Stock", buttons=[("Save", True), ("Cancel", False)], large=True)
-
-    if result:
+    if alert(content=layout, title="Update Stock", buttons=[("Save", True), ("Cancel", False)], large=True):
       row = item_sel.selected_value
       if row:
-        oh = int(oh_box.text or 0)
-        ma = int(ma_box.text or 0)
+        oh, ma = int(oh_box.text or 0), int(ma_box.text or 0)
         row.update(
           On_Hand=oh, 
           Minimum_Amt=ma, 
           Category=cat_dd.selected_value,
           Subcategory=subcat_box.text or None,
-          To_Order=max(0, ma - oh)
+          To_Order=max(0, ma-oh)
         )
         self.refresh_inventory()
         self.load_subcategories()
-        show_info("Stock updated successfully")

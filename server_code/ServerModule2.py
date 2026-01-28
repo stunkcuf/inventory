@@ -110,16 +110,20 @@ def get_excel_column_index(df, column_name):
 # --- 2. DATA LOADERS ---
 @anvil.server.callable
 def get_inventory_fast(category="All", search_query=None, subcategory=None):
-  """UNCHANGED - Your original code works perfectly"""
   search_args = {}
   if category and category != "All":
     search_args['Category'] = category
   if subcategory and subcategory != "All":
     search_args['Subcategory'] = subcategory
-  if search_query and search_query.strip() != "":
-    search_args['Item'] = q.ilike(f"%{search_query}%")
-  return app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
 
+  if search_query and search_query.strip() != "":
+    # Split the search into individual words (e.g., "black", "pen")
+    # This finds items that contain BOTH words, in any order.
+    words = search_query.strip().split()
+    search_args['Item'] = q.all_of(*[q.ilike(f"%{w}%") for w in words])
+
+  # We search ONLY the 'Item' column to stop "Black Pens" from pulling random bags
+  return app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
 @anvil.server.callable
 def get_subcategories(category="All"):
   """UNCHANGED - Your original code works perfectly"""
@@ -910,30 +914,6 @@ def clear_order_history():
   return reset_count
 
 @anvil.server.callable
-def save_machform_order(order_data):
-  """Save new MachForm order"""
-  try:
-    app_tables.machform_orders.add_row(
-      date_requested=order_data['date_requested'],
-      requester_name=order_data['requester_name'],
-      location=order_data['location'],
-      category=order_data['category'],
-      items_summary=order_data['items_summary'],
-      total_cost=order_data['total_cost'],
-      status='Pending',
-      date_filled=None,
-      notes=order_data.get('notes', '')
-    )
-    print(f"✅ Saved MachForm order: {order_data['requester_name']}")
-    return True
-  except Exception as e:
-    print(f"❌ Save error: {e}")
-    import traceback
-    traceback.print_exc()
-    return False
-
-
-@anvil.server.callable
 def get_machform_orders(status_filter="All"):
   """Get MachForm orders with optional status filter"""
   try:
@@ -1117,3 +1097,4 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
+

@@ -3,7 +3,6 @@ from anvil import *
 import anvil.users
 import anvil.server
 import plotly.graph_objects as go
-from .helpers import format_currency, show_info, log_error
 
 class SummaryForm(SummaryFormTemplate):
   def __init__(self, **properties):
@@ -18,7 +17,9 @@ class SummaryForm(SummaryFormTemplate):
         self.dd_summary_selector.items = options
         self.dd_summary_selector.selected_value = 'summary_2025'
     except Exception as e:
-      log_error("load_summary_options", e)
+      print(f"❌ Error loading summary options: {e}")
+      import traceback
+      traceback.print_exc()
 
   def dd_summary_selector_change(self, **event_args):
     self.refresh_summary()
@@ -45,18 +46,22 @@ class SummaryForm(SummaryFormTemplate):
         }
         title_prefix = title_map.get(selected_table, selected_table)
 
+        # Format currency inline
+        formatted_costs = [f"${c:,.2f}" for c in costs]
+        formatted_total = f"${total_spending:,.2f}"
+
         self.plot_spending.data = go.Bar(
           x=locations, 
           y=costs,
           marker_color='#2196F3',
-          text=[format_currency(c) for c in costs],
+          text=formatted_costs,
           textposition='auto',
           hovertemplate='<b>%{x}</b><br>Total: $%{y:,.2f}<extra></extra>'
         )
 
         self.plot_spending.layout = {
           'title': {
-            'text': f"{title_prefix} Spending<br><sup>Total: {format_currency(total_spending)}</sup>",
+            'text': f"{title_prefix} Spending<br><sup>Total: {formatted_total}</sup>",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 18}
@@ -81,7 +86,7 @@ class SummaryForm(SummaryFormTemplate):
           'responsive': True
         }
 
-        print(f"Summary refreshed: {len(locations)} locations, {format_currency(total_spending)} total")
+        print(f"Summary refreshed: {len(locations)} locations, {formatted_total} total")
 
       else:
         self.plot_spending.data = []
@@ -105,7 +110,9 @@ class SummaryForm(SummaryFormTemplate):
         }
 
     except Exception as e:
-      log_error("refresh_summary", e)
+      print(f"❌ Error refreshing summary: {e}")
+      import traceback
+      traceback.print_exc()
 
       self.plot_spending.data = []
       self.plot_spending.layout = {
@@ -130,4 +137,4 @@ class SummaryForm(SummaryFormTemplate):
   def btn_refresh_click(self, **event_args):
     """Manual refresh button"""
     self.refresh_summary()
-    show_info("Summary refreshed")
+    Notification("Summary refreshed", style="info", timeout=2).show()
