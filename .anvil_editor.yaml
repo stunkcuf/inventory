@@ -7,8 +7,13 @@ unique_ids:
   forms:
     MainForm: '1768512904781257626864282.2874'
     MainForm.AdminForm: '1768513770005204835017321.72217'
+    MainForm.AuditLogForm: '1769493290786239457437980.8303'
+    MainForm.AuditLogForm.AuditLogRowTemplate: '1769493453668653133456613.3021'
     MainForm.InventoryForm: '1768513698484645582004771.786'
     MainForm.InventoryForm.RowTemplate2: '1768514078273452337655212.6005'
+    MainForm.OrderFillForm: '1769208124010718761130167.887'
+    MainForm.OrderHistoryForm: '1769205550776599064987586.9392'
+    MainForm.OrderHistoryForm.OrderHistoryRowTemplate: '1769206284556462291615610.11365'
     MainForm.ShoppingListForm: '1768594492643745811307046.1282'
     MainForm.ShoppingListForm.RowTemplate3: '1768595196766152082827012.2552'
     MainForm.SummaryForm: '1768513755212634650823003.8097'

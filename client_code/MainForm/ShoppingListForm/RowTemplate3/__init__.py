@@ -1,5 +1,6 @@
 from ._anvil_designer import RowTemplate3Template
 from anvil import *
+import anvil.users
 import anvil.server
 
 class RowTemplate3(RowTemplate3Template):
@@ -53,8 +54,8 @@ class RowTemplate3(RowTemplate3Template):
       if not result:
         alert(f"Warning: Could not find '{self.item['Item']}' in the database tables.")
       else:
-        # NEW: Update parent form's summary
-        parent_form = self.parent.parent.parent  # Navigate up to ShoppingListForm
+        # Update parent form's summary
+        parent_form = self.parent.parent.parent
         if hasattr(parent_form, 'update_summary'):
           parent_form.update_summary()
 

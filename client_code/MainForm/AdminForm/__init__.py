@@ -1,5 +1,6 @@
 from ._anvil_designer import AdminFormTemplate
 from anvil import *
+import anvil.users
 import anvil.server
 import anvil.tables as tables
 import anvil.tables.query as q
@@ -10,10 +11,7 @@ class AdminForm(AdminFormTemplate):
     self.init_components(**properties)
 
   def file_loader_1_change(self, file, **event_args):
-    """
-    IMPROVED: Better user feedback with detailed import results
-    WHY: Shows exactly what was imported and any issues
-    """
+    """Import Excel file with detailed feedback"""
     if file:
       try:
         with Notification("Importing Excel file... This may take a minute.", 
@@ -23,7 +21,6 @@ class AdminForm(AdminFormTemplate):
         if result.get('success'):
           stats = result['stats']
 
-          # Build success message
           msg = f"✅ Import Successful!\n\n"
           msg += f"📊 Imported {result['total_items']} total items:\n"
           msg += f"  • Inventory: {stats['inventory']}\n"
@@ -31,22 +28,18 @@ class AdminForm(AdminFormTemplate):
           msg += f"  • Center Calcs: {stats['center_calcs']}\n"
           msg += f"  • Summary: {stats['summary_2025']}\n"
 
-          # Show warnings if any
           if stats['warnings']:
             msg += f"\n⚠️ {len(stats['warnings'])} warnings (check console)"
-            for warning in stats['warnings'][:5]:  # Show first 5
+            for warning in stats['warnings'][:5]:
               print(f"WARNING: {warning}")
 
-          # Show errors if any
           if stats['errors']:
             msg += f"\n❌ {len(stats['errors'])} errors occurred"
             for error in stats['errors']:
               print(f"ERROR: {error}")
 
           alert(msg, title="Import Complete")
-
         else:
-          # Import failed
           error_msg = result.get('error', 'Unknown error')
           Notification(f"Import failed: {error_msg}", style="danger", timeout=10).show()
 
@@ -57,14 +50,38 @@ class AdminForm(AdminFormTemplate):
       Notification("Please select a file to upload.", style="warning").show()
 
   def btn_clear_inventory_click(self, **event_args):
-    """UNCHANGED - Your original code works perfectly"""
+    """Clear all inventory data"""
     if confirm("Are you sure you want to clear ALL inventory data?"):
       app_tables.inventory.delete_all_rows()
       Notification("Inventory cleared.", style="success").show()
 
   def shopping_list_link_click(self, **event_args):
-    """UNCHANGED - Your original code works perfectly"""
+    """Navigate to Shopping List"""
     from ..ShoppingListForm import ShoppingListForm
     main_layout = get_open_form()
     main_layout.content_panel.clear()
     main_layout.content_panel.add_component(ShoppingListForm())
+
+  def link_order_history_click(self, **event_args):
+    """Navigate to Order History"""
+    print("AdminForm: Order History link clicked!")
+    try:
+      main_form = get_open_form()
+      print(f"Got main form: {main_form}")
+      main_form.link_order_history_click()
+      print("Called main form navigation")
+    except Exception as e:
+      print(f"Navigation error: {e}")
+
+  @handle("link_audit_logs", "click")
+  def link_audit_logs_click(self, **event_args):
+    """Navigate to Audit Logs - Admin Only"""
+    try:
+      from ..AuditLogForm import AuditLogForm
+      main_layout = get_open_form()
+      main_layout.content_panel.clear()
+      main_layout.content_panel.add_component(AuditLogForm())
+      print("Navigated to Audit Logs")
+    except Exception as e:
+      print(f"Audit logs navigation error: {e}")
+      Notification(f"Error loading audit logs: {str(e)}", style="danger").show()

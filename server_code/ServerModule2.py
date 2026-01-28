@@ -1,3 +1,4 @@
+import anvil.users
 import anvil.tables as tables
 from anvil.tables import app_tables
 import anvil.server
@@ -729,8 +730,8 @@ def get_shopping_list():
 @anvil.server.callable
 def check_ordered(item_name, category, status):
   """
-  IMPROVED: Better error handling and feedback
-  WHY: Prevents silent failures, handles duplicates properly
+  IMPROVED: Better error handling and feedback + AUDIT LOGGING
+  WHY: Prevents silent failures, handles duplicates properly, tracks all changes
   """
   table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
 
@@ -743,8 +744,19 @@ def check_ordered(item_name, category, status):
 
   # Update all matching rows (handles duplicates if they exist)
   for row in matching_rows:
+    old_status = row['Ordered']  # Save old value for audit
     row['Ordered'] = status
     row['Date_Ordered'] = datetime.now().date() if status else None
+
+    # AUDIT LOG
+    log_audit(
+      action='UPDATE',
+      table_name=f'{category.lower()}_calcs',
+      item_name=item_name,
+      old_value=f"Ordered: {old_status}",
+      new_value=f"Ordered: {status}",
+      details=f"Shopping list: Marked as {'ordered' if status else 'not ordered'}"
+    )
 
   if len(matching_rows) > 1:
     print(f"Warning: Found {len(matching_rows)} duplicate entries for '{item_name}'")
@@ -789,7 +801,7 @@ def sync_inventory_status():
 
   return reset_count
 
-# --- 5. NEW UTILITY FUNCTIONS ---
+# --- 5. UTILITY FUNCTIONS ---
 
 @anvil.server.callable
 def get_import_warnings():
@@ -838,7 +850,7 @@ def get_inventory_stats():
   for item in all_items:
     subcat = item.get('Subcategory', 'Uncategorized')
     categories[subcat] = categories.get(subcat, 0) + 1
-  
+
   return {
     'total_items': total_items,
     'low_stock_count': low_stock,
@@ -846,3 +858,262 @@ def get_inventory_stats():
     'center_count': center_items,
     'subcategories': categories
   }
+
+@anvil.server.callable
+def export_order_history_csv(history):
+  """Generate CSV file from order history"""
+  import csv
+  from io import StringIO
+
+  try:
+    output = StringIO()
+    writer = csv.writer(output)
+
+    writer.writerow(['Date Ordered', 'Item', 'Category', 'Link'])
+
+    for item in history:
+      writer.writerow([
+        str(item.get('Date', '')),
+        item.get('Item', ''),
+        item.get('Source', ''),
+        item.get('Link', '')
+      ])
+
+    csv_data = output.getvalue()
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+
+    return anvil.BlobMedia(
+      'text/csv',
+      csv_data.encode(),
+      name=f'order_history_{timestamp}.csv'
+    )
+
+  except Exception as e:
+    print(f"Server CSV export error: {e}")
+    import traceback
+    traceback.print_exc()
+    return None
+
+
+@anvil.server.callable
+def clear_order_history():
+  """Clear all order history"""
+  reset_count = 0
+
+  for table in [app_tables.office_calcs, app_tables.center_calcs]:
+    for row in table.search(Ordered=True):
+      row['Ordered'] = False
+      row['Date_Ordered'] = None
+      reset_count += 1
+
+  print(f"Cleared {reset_count} order history records")
+  return reset_count
+
+@anvil.server.callable
+def save_machform_order(order_data):
+  """Save new MachForm order"""
+  try:
+    app_tables.machform_orders.add_row(
+      date_requested=order_data['date_requested'],
+      requester_name=order_data['requester_name'],
+      location=order_data['location'],
+      category=order_data['category'],
+      items_summary=order_data['items_summary'],
+      total_cost=order_data['total_cost'],
+      status='Pending',
+      date_filled=None,
+      notes=order_data.get('notes', '')
+    )
+    print(f"✅ Saved MachForm order: {order_data['requester_name']}")
+    return True
+  except Exception as e:
+    print(f"❌ Save error: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
+
+
+@anvil.server.callable
+def get_machform_orders(status_filter="All"):
+  """Get MachForm orders with optional status filter"""
+  try:
+    search_args = {}
+    if status_filter and status_filter != "All":
+      search_args['status'] = status_filter
+
+    orders = app_tables.machform_orders.search(
+      tables.order_by('date_requested', ascending=False),
+      **search_args
+    )
+
+    result = []
+    for order in orders:
+      result.append({
+        'order_id': order.get_id(),
+        'date_requested': order['date_requested'],
+        'requester_name': order['requester_name'],
+        'location': order['location'],
+        'category': order['category'],
+        'items_summary': order['items_summary'],
+        'total_cost': order['total_cost'],
+        'status': order['status']
+      })
+
+    print(f"Retrieved {len(result)} orders")
+    return result
+
+  except Exception as e:
+    print(f"❌ Error getting orders: {e}")
+    import traceback
+    traceback.print_exc()
+    return []
+
+
+@anvil.server.callable
+def update_order_status(order_id, new_status):
+  """Update MachForm order status"""
+  try:
+    order = app_tables.machform_orders.get_by_id(order_id)
+    if order:
+      order['status'] = new_status
+      if new_status == 'Filled':
+        order['date_filled'] = datetime.now().date()
+      else:
+        order['date_filled'] = None
+      print(f"✅ Updated order {order_id} to {new_status}")
+      return True
+    else:
+      print(f"❌ Order {order_id} not found")
+      return False
+  except Exception as e:
+    print(f"❌ Status update error: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
+
+
+@anvil.server.callable
+def log_audit(action, table_name, item_name, old_value=None, new_value=None, details=None):
+  """
+  Log an audit entry
+  USAGE: log_audit('UPDATE', 'inventory', 'Paper Towels', '10', '25', 'On_Hand changed')
+  """
+  try:
+    user = anvil.users.get_user()
+    user_email = user['email'] if user else 'System'
+    
+    app_tables.audit_logs.add_row(
+      timestamp=datetime.now(),
+      user_email=user_email,
+      action=action,
+      table_name=table_name,
+      item_name=item_name,
+      old_value=str(old_value) if old_value is not None else None,
+      new_value=str(new_value) if new_value is not None else None,
+      details=details
+    )
+    
+    print(f"📝 Audit: {user_email} - {action} - {table_name}/{item_name}")
+    
+  except Exception as e:
+    print(f"Audit logging error: {e}")
+    # Don't fail the main operation if audit logging fails
+
+
+@anvil.server.callable
+def get_audit_logs(limit=100, table_filter=None):
+  """Get recent audit logs"""
+  try:
+    search_args = {}
+    if table_filter and table_filter != "All":
+      search_args['table_name'] = table_filter
+    
+    logs = app_tables.audit_logs.search(
+      tables.order_by('timestamp', ascending=False),
+      **search_args
+    )
+    
+    result = []
+    for log in list(logs)[:limit]:
+      result.append({
+        'timestamp': log['timestamp'],
+        'user_email': log['user_email'],
+        'action': log['action'],
+        'table_name': log['table_name'],
+        'item_name': log['item_name'],
+        'old_value': log['old_value'],
+        'new_value': log['new_value'],
+        'details': log['details']
+      })
+    
+    return result
+    
+  except Exception as e:
+    print(f"Error getting audit logs: {e}")
+    return []
+
+
+@anvil.server.callable
+def get_current_user_role():
+  """Get the current user's role"""
+  user = anvil.users.get_user()
+  if not user:
+    return None
+  return user.get('role', 'staff')
+
+
+@anvil.server.callable
+def is_admin():
+  """Check if current user is admin"""
+  role = get_current_user_role()
+  return role == 'admin'
+
+
+@anvil.server.callable
+def require_admin():
+  """Raise exception if user is not admin"""
+  if not is_admin():
+    raise Exception("Admin access required for this action")
+
+
+@anvil.server.callable
+def update_order_fulfillment(order_id, new_status, notes):
+  """
+  Update order fulfillment status
+  WHY: Track which orders are complete/partial/pending
+  """
+  try:
+    user = anvil.users.get_user()
+    order = app_tables.machform_orders.get_by_id(order_id)
+    
+    if order:
+      old_status = order['status']
+      order['status'] = new_status
+      order['notes'] = notes
+      
+      # Mark as fulfilled if status is Filled
+      if new_status == 'Filled':
+        order['fulfilled_by'] = user['email']
+        order['fulfilled_date'] = datetime.now().date()
+      
+      # Audit log
+      log_audit(
+        action='UPDATE',
+        table_name='machform_orders',
+        item_name=order['requester_name'],
+        old_value=f"Status: {old_status}",
+        new_value=f"Status: {new_status}",
+        details=f"Order fulfillment updated by {user['email']}"
+      )
+      
+      print(f"✅ Updated order {order_id} to {new_status}")
+      return True
+    else:
+      print(f"❌ Order {order_id} not found")
+      return False
+      
+  except Exception as e:
+    print(f"❌ Update error: {e}")
+    import traceback
+    traceback.print_exc()
+    return False

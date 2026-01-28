@@ -2,6 +2,11 @@ components:
 - components:
   - event_bindings: {}
     layout_properties: {}
+    name: order_filling
+    properties: {text: Order Filling}
+    type: Link
+  - event_bindings: {}
+    layout_properties: {}
     name: link_inventory
     properties: {text: Inventory}
     type: Link
@@ -14,6 +19,10 @@ components:
     layout_properties: {}
     name: link_admin
     properties: {text: Admin/Upload}
+    type: Link
+  - layout_properties: {}
+    name: link_logout
+    properties: {align: right, icon: 'fa:sign-out', text: Logout}
     type: Link
   layout_properties: {slot: ''}
   name: navbar_links
