@@ -340,6 +340,9 @@ db_schema:
     - admin_ui: {order: 6, width: 200}
       name: Other_Amt
       type: number
+    - admin_ui: {order: 7, width: 200}
+      name: Location_Code
+      type: number
     server: full
     title: summary_2025
   users:
