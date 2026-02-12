@@ -4,7 +4,8 @@ components:
   name: dd_summary_selector
   properties: {}
   type: DropDown
-- layout_properties: {grid_position: 'EYXIIY,RZEXCH'}
+- data_bindings: []
+  layout_properties: {full_width_row: true, grid_position: 'EYXIIY,RZEXCH'}
   name: plot_spending
   properties: {}
   type: Plot

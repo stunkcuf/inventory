@@ -11,6 +11,93 @@ from datetime import datetime
 import openpyxl
 
 
+# --- LOCATION MAPPING SYSTEM ---
+# Master lookup table for location codes and names
+LOCATION_MAP = {
+  10: "Main Office",
+  11: "NELC",
+  12: "NELC", 
+  14: "PELC",
+  15: "Annex",
+  16: "LaGrande",
+  21: "CWELC",
+  22: "Umatilla",
+  24: "Pine Tree",
+  25: "PEHS",
+  26: "PEHS",
+  31: "Victory Square",
+  32: "HCSR",
+  33: "HCSR Lil Pups",
+  34: "FACE",
+  41: "Milton-Freewater",
+  51: "Irrigon",
+  60: "Airport Way",
+  62: "PELC",
+  63: "Enterprise",
+  64: "CCR&R",
+  68: "Bus Barn",
+  69: "Patriot Heights",
+  441: "MO"
+}
+
+def normalize_location_name(name):
+  """Clean up location name variations"""
+  if not name:
+    return name
+
+  name = str(name).strip()
+
+  # Handle common variations
+  variations = {
+    'Milton Freewater': 'Milton-Freewater',
+    'Milton-Freewate': 'Milton-Freewater',
+    'MiltonFreewater': 'Milton-Freewater',
+    'Pinetree': 'Pine Tree',
+    'LaG': 'LaGrande',
+    'La Grande': 'LaGrande',
+    'Stanfield/PH': 'Patriot Heights',
+    'PH/Stanfield': 'Patriot Heights',
+    'Stanfield / PH': 'Patriot Heights',
+    'Lil Pups 3': 'HCSR Lil Pups',
+    'Lil Pups 1': 'HCSR Lil Pups',
+    'HCSR Lil Pups 1': 'HCSR Lil Pups',
+    'HCSR Lil Pups 3': 'HCSR Lil Pups',
+    'Main Office WIC': 'Main Office',
+    'MO WIC': 'Main Office',
+    'MO HR': 'Main Office',
+  }
+
+  return variations.get(name, name)
+
+def get_complete_location_display(location_code, location_name):
+  """
+  Build complete location display: [code] name
+  Uses master mapping to fill in missing parts
+  """
+  # Normalize the name if provided
+  if location_name:
+    location_name = normalize_location_name(location_name)
+
+  # Try to get complete info from mapping
+  if location_code and location_code in LOCATION_MAP:
+    canonical_name = LOCATION_MAP[location_code]
+    return f"[{location_code}] {canonical_name}"
+
+  # If we have both, use them
+  if location_code and location_name:
+    return f"[{location_code}] {location_name}"
+
+  # If only code, use it
+  if location_code:
+    return f"[{location_code}] Location {location_code}"
+
+  # If only name, return as-is (no code available)
+  if location_name:
+    return location_name
+
+  return "Unknown"
+
+
 # --- 1. HELPERS ---
 def clean_num(val):
   """UNCHANGED - Your original code works perfectly"""
@@ -204,17 +291,15 @@ def get_spending_summary_by_table(table_name='summary_2025'):
                       'inventory_summary_center', 'inventory_summary_internal']:
       # Return full breakdown for all summary tables
       for r in data:
-        location = r.get('Location') or "Unknown"
+        # Try both column name formats
+        location = r.get('Location') or r.get('location_name') or "Unknown"
         location_code = r.get('Location_Code')  # This is a number
         gl_amt = r.get('GL_Amt') or 0
         po_amt = r.get('PO_Amt') or 0
         other_amt = r.get('Other_Amt') or 0
 
-        # Format display name with code if it exists
-        if location_code:
-          display_name = f"[{location_code}] {location}"
-        else:
-          display_name = location
+        # Location name already has formatting from import, use as-is
+        display_name = location
 
         results.append((display_name, gl_amt, po_amt, other_amt))
         print(f"  {display_name}: GL=${gl_amt}, PO=${po_amt}, Other=${other_amt}")
@@ -280,18 +365,44 @@ def get_spending_chart_figure(table_name='summary_2025'):
     print("No data found")
     return None
 
-  # Separate locations and amounts
-  locations = []
-  gl_amounts = []
-  po_amounts = []
-  other_amounts = []
+  # Aggregate by location and filter out Unknown/$0 entries
+  location_totals = {}
 
   for item in data:
     location, gl, po, other = item
-    locations.append(location)
-    gl_amounts.append(gl)
-    po_amounts.append(po)
-    other_amounts.append(other)
+
+    # Skip if location is "Unknown" and all amounts are 0
+    if location == "Unknown" and gl == 0 and po == 0 and other == 0:
+      continue
+
+    # Skip if all amounts are 0
+    if gl == 0 and po == 0 and other == 0:
+      continue
+
+    # Aggregate by location
+    if location not in location_totals:
+      location_totals[location] = {'gl': 0, 'po': 0, 'other': 0}
+
+    location_totals[location]['gl'] += gl
+    location_totals[location]['po'] += po
+    location_totals[location]['other'] += other
+
+  if len(location_totals) == 0:
+    print("No spending found after filtering")
+    return None
+
+  # Sort by total spending (descending)
+  sorted_locations = sorted(
+    location_totals.items(), 
+    key=lambda x: x[1]['gl'] + x[1]['po'] + x[1]['other'],
+    reverse=True
+  )
+
+  # Separate into lists
+  locations = [loc for loc, _ in sorted_locations]
+  gl_amounts = [totals['gl'] for _, totals in sorted_locations]
+  po_amounts = [totals['po'] for _, totals in sorted_locations]
+  other_amounts = [totals['other'] for _, totals in sorted_locations]
 
   # Build traces - only include if there's ANY spending in that category
   traces = []
@@ -365,7 +476,7 @@ def get_spending_chart_figure(table_name='summary_2025'):
     }
   }
 
-  print(f"Generated figure with {len(traces)} traces for {len(locations)} locations")
+  print(f"Generated figure with {len(traces)} traces for {len(locations)} locations (filtered from {len(data)} raw entries)")
   return figure
 
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
@@ -493,15 +604,17 @@ def process_excel_import(file):
           if not item_name or item_name in ["None", "Item", "nan"]:
             continue
 
-          if item_name.endswith(':'):
-            current_subcategory = item_name.rstrip(':')
-            print(f"  Found subcategory: {current_subcategory}")
-            continue
+          # Only detect subcategories in calcs/inventory sheets, NOT summary sheets
+          if "calcs" in table_name.lower() or table_name == "inventory":
+            if item_name.endswith(':'):
+              current_subcategory = item_name.rstrip(':')
+              print(f"  Found subcategory: {current_subcategory}")
+              continue
 
-          if item_name.isupper() and len(item_name.split()) <= 3:
-            current_subcategory = item_name
-            print(f"  Found subcategory: {current_subcategory}")
-            continue
+            if item_name.isupper() and len(item_name.split()) <= 3:
+              current_subcategory = item_name
+              print(f"  Found subcategory: {current_subcategory}")
+              continue
 
           # --- UNCHANGED: Your comprehensive URL extraction (works perfectly) ---
           excel_row_num = idx + header_row_idx + 2
@@ -693,12 +806,12 @@ def process_excel_import(file):
             po_amt = 0
             other_amt = 0
             total_cost = 0
-
+            
             # Extract Location Code (Column B) - store as NUMBER
             for loc_code_col in ['Location #', 'Location Code', 'Location_Code', 'Loc Code', 'Code', 'Loc #', 'Site Code', 'Site #']:
               if loc_code_col in raw and pd.notna(raw[loc_code_col]):
                 raw_value = raw[loc_code_col]
-
+                
                 # Try to convert to integer
                 try:
                   if isinstance(raw_value, (int, float)):
@@ -706,68 +819,73 @@ def process_excel_import(file):
                   elif isinstance(raw_value, str):
                     # Try to parse string as number
                     location_code = int(float(raw_value.strip()))
-
+                  
                   if location_code:
                     break
                 except (ValueError, TypeError):
                   # If it's not a number (like "NELC"), skip it - it's probably the location name
                   continue
-
+            
             # Extract Location Name
             for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
               if loc_col in raw and pd.notna(raw[loc_col]):
-                location = str(raw[loc_col]).strip()
-                if location:
+                loc_value = str(raw[loc_col]).strip()
+                # Skip if it's just a number or looks like a code
+                if loc_value and not loc_value.replace('.', '').replace('-', '').isdigit():
+                  location = loc_value
                   break
-
+            
+            # Use the complete location display function
+            location = get_complete_location_display(location_code, location)
+            
             # Extract GL Amount (Column H)
             for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
               if gl_col in raw and pd.notna(raw[gl_col]):
                 gl_amt = clean_num(raw[gl_col])
                 if gl_amt != 0:
                   break
-
+            
             # Extract PO Amount (Column I)
             for po_col in ['PO Amt', 'PO_Amt', 'PO Orders', 'PO Amount', 'Purchase Orders', 'PO']:
               if po_col in raw and pd.notna(raw[po_col]):
                 po_amt = clean_num(raw[po_col])
                 if po_amt != 0:
                   break
-
+            
             # Extract Other Amount (Column J)
             for other_col in ['Other Amt', 'Other_Amt', 'Other', 'Misc', 'Miscellaneous']:
               if other_col in raw and pd.notna(raw[other_col]):
                 other_amt = clean_num(raw[other_col])
                 if other_amt != 0:
                   break
-
+            
             # Extract Total Amount (Column K)
             for cost_col in ['Total Amt', 'Total_Amt', 'Total Cost', 'Total_Cost', 'Total', 'Amount', 'Amt']:
               if cost_col in raw and pd.notna(raw[cost_col]):
                 total_cost = clean_num(raw[cost_col])
                 if total_cost != 0:
                   break
-
+            
             # Validation warning
             if table_name == "summary_2025":
               calculated_total = gl_amt + po_amt + other_amt
               if abs(calculated_total - total_cost) > 0.01 and total_cost > 0:
                 print(f"  ⚠️  Totals mismatch for {location}: GL+PO+Other=${calculated_total:.2f}, Total=${total_cost:.2f}")
-
+            
             # Insert row
             if location or location_code:
               # All summary tables get full breakdown
               if table_name in ["summary_2025", "inventory_summary_office", 
                                 "inventory_summary_center", "inventory_summary_internal"]:
-
+                
                 table = getattr(app_tables, table_name)
-
+                
                 # Build row data based on available columns
                 # Check first row to see which column names exist
                 sample_row = list(table.search())
                 has_Location = 'Location' in (sample_row[0].keys() if sample_row else [])
                 has_Total_Cost = 'Total_Cost' in (sample_row[0].keys() if sample_row else [])
-
+                
                 # Build kwargs dynamically
                 kwargs = {
                   'Location_Code': location_code,
@@ -775,30 +893,31 @@ def process_excel_import(file):
                   'PO_Amt': po_amt,
                   'Other_Amt': other_amt,
                 }
-
+                
                 # Add location with correct column name
                 if has_Location or table_name == "summary_2025":
                   kwargs['Location'] = location or "Unknown"
                 else:
                   kwargs['location_name'] = location or "Unknown"
-
+                
                 # Add total with correct column name
                 if has_Total_Cost or table_name == "summary_2025":
                   kwargs['Total_Cost'] = total_cost
                 else:
                   kwargs['total_amt'] = total_cost
-
+                
                 table.add_row(**kwargs)
-
-                code_display = f"[{location_code}]" if location_code else ""
-                print(f"  ✓ {code_display} {location}: GL=${gl_amt:,.2f} PO=${po_amt:,.2f} Other=${other_amt:,.2f}")
+                
+                # Print progress less frequently (every 10 rows) to speed up import
+                if import_stats[table_name] % 10 == 0:
+                  print(f"  ✓ Processed {import_stats[table_name]} {table_name} entries...")
               else:
                 # Any other future summary tables - simpler format
                 getattr(app_tables, table_name).add_row(
                   Location=location,
                   Total_Cost=total_cost
                 )
-
+              
               import_stats[table_name] += 1
 
       except Exception as sheet_error:
