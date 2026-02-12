@@ -264,6 +264,110 @@ def get_available_summary_tables():
     ('Center Inventory Summary', 'inventory_summary_center'),
   ]
 
+@anvil.server.callable
+def get_spending_chart_figure(table_name='summary_2025'):
+  """
+  Generate a clean Plotly figure for spending breakdown
+  Only shows bars for categories with non-zero values
+  Returns a Plotly figure dict ready for client rendering
+  """
+  print(f"=== Generating chart for {table_name} ===")
+
+  # Get the data
+  data = get_spending_summary_by_table(table_name)
+
+  if not data or len(data) == 0:
+    print("No data found")
+    return None
+
+  # Separate locations and amounts
+  locations = []
+  gl_amounts = []
+  po_amounts = []
+  other_amounts = []
+
+  for item in data:
+    location, gl, po, other = item
+    locations.append(location)
+    gl_amounts.append(gl)
+    po_amounts.append(po)
+    other_amounts.append(other)
+
+  # Build traces - only include if there's ANY spending in that category
+  traces = []
+
+  # Check if there's any GL spending across all locations
+  if sum(gl_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'GL Spending',
+      'x': locations,
+      'y': gl_amounts,
+      'marker': {'color': '#4A90E2'},  # Blue
+      'hovertemplate': '<b>%{x}</b><br>GL: $%{y:,.2f}<extra></extra>'
+    })
+
+  # Check if there's any PO spending
+  if sum(po_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'PO Orders',
+      'x': locations,
+      'y': po_amounts,
+      'marker': {'color': '#50C878'},  # Green
+      'hovertemplate': '<b>%{x}</b><br>PO: $%{y:,.2f}<extra></extra>'
+    })
+
+  # Check if there's any Other spending
+  if sum(other_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'Other',
+      'x': locations,
+      'y': other_amounts,
+      'marker': {'color': '#FF9500'},  # Orange
+      'hovertemplate': '<b>%{x}</b><br>Other: $%{y:,.2f}<extra></extra>'
+    })
+
+  # If no traces at all, return None
+  if len(traces) == 0:
+    print("No spending found in any category")
+    return None
+
+  # Build the figure
+  figure = {
+    'data': traces,
+    'layout': {
+      'title': {
+        'text': f'Spending Breakdown - {table_name.replace("_", " ").title()}',
+        'font': {'size': 20}
+      },
+      'barmode': 'stack',
+      'xaxis': {
+        'title': 'Location',
+        'tickangle': -45,
+        'automargin': True
+      },
+      'yaxis': {
+        'title': 'Amount ($)',
+        'tickformat': '$,.0f'
+      },
+      'hovermode': 'closest',
+      'showlegend': True,
+      'legend': {
+        'orientation': 'h',
+        'yanchor': 'bottom',
+        'y': 1.02,
+        'xanchor': 'right',
+        'x': 1
+      },
+      'margin': {'b': 120, 't': 60, 'l': 60, 'r': 20}
+    }
+  }
+
+  print(f"Generated figure with {len(traces)} traces for {len(locations)} locations")
+  return figure
+
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
 @anvil.server.callable
 def process_excel_import(file):
@@ -589,12 +693,12 @@ def process_excel_import(file):
             po_amt = 0
             other_amt = 0
             total_cost = 0
-            
+
             # Extract Location Code (Column B) - store as NUMBER
             for loc_code_col in ['Location #', 'Location Code', 'Location_Code', 'Loc Code', 'Code', 'Loc #', 'Site Code', 'Site #']:
               if loc_code_col in raw and pd.notna(raw[loc_code_col]):
                 raw_value = raw[loc_code_col]
-                
+
                 # Try to convert to integer
                 try:
                   if isinstance(raw_value, (int, float)):
@@ -602,68 +706,68 @@ def process_excel_import(file):
                   elif isinstance(raw_value, str):
                     # Try to parse string as number
                     location_code = int(float(raw_value.strip()))
-                  
+
                   if location_code:
                     break
                 except (ValueError, TypeError):
                   # If it's not a number (like "NELC"), skip it - it's probably the location name
                   continue
-            
+
             # Extract Location Name
             for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
               if loc_col in raw and pd.notna(raw[loc_col]):
                 location = str(raw[loc_col]).strip()
                 if location:
                   break
-            
+
             # Extract GL Amount (Column H)
             for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
               if gl_col in raw and pd.notna(raw[gl_col]):
                 gl_amt = clean_num(raw[gl_col])
                 if gl_amt != 0:
                   break
-            
+
             # Extract PO Amount (Column I)
             for po_col in ['PO Amt', 'PO_Amt', 'PO Orders', 'PO Amount', 'Purchase Orders', 'PO']:
               if po_col in raw and pd.notna(raw[po_col]):
                 po_amt = clean_num(raw[po_col])
                 if po_amt != 0:
                   break
-            
+
             # Extract Other Amount (Column J)
             for other_col in ['Other Amt', 'Other_Amt', 'Other', 'Misc', 'Miscellaneous']:
               if other_col in raw and pd.notna(raw[other_col]):
                 other_amt = clean_num(raw[other_col])
                 if other_amt != 0:
                   break
-            
+
             # Extract Total Amount (Column K)
             for cost_col in ['Total Amt', 'Total_Amt', 'Total Cost', 'Total_Cost', 'Total', 'Amount', 'Amt']:
               if cost_col in raw and pd.notna(raw[cost_col]):
                 total_cost = clean_num(raw[cost_col])
                 if total_cost != 0:
                   break
-            
+
             # Validation warning
             if table_name == "summary_2025":
               calculated_total = gl_amt + po_amt + other_amt
               if abs(calculated_total - total_cost) > 0.01 and total_cost > 0:
                 print(f"  ⚠️  Totals mismatch for {location}: GL+PO+Other=${calculated_total:.2f}, Total=${total_cost:.2f}")
-            
+
             # Insert row
             if location or location_code:
               # All summary tables get full breakdown
               if table_name in ["summary_2025", "inventory_summary_office", 
                                 "inventory_summary_center", "inventory_summary_internal"]:
-                
+
                 table = getattr(app_tables, table_name)
-                
+
                 # Build row data based on available columns
                 # Check first row to see which column names exist
                 sample_row = list(table.search())
                 has_Location = 'Location' in (sample_row[0].keys() if sample_row else [])
                 has_Total_Cost = 'Total_Cost' in (sample_row[0].keys() if sample_row else [])
-                
+
                 # Build kwargs dynamically
                 kwargs = {
                   'Location_Code': location_code,
@@ -671,21 +775,21 @@ def process_excel_import(file):
                   'PO_Amt': po_amt,
                   'Other_Amt': other_amt,
                 }
-                
+
                 # Add location with correct column name
                 if has_Location or table_name == "summary_2025":
                   kwargs['Location'] = location or "Unknown"
                 else:
                   kwargs['location_name'] = location or "Unknown"
-                
+
                 # Add total with correct column name
                 if has_Total_Cost or table_name == "summary_2025":
                   kwargs['Total_Cost'] = total_cost
                 else:
                   kwargs['total_amt'] = total_cost
-                
+
                 table.add_row(**kwargs)
-                
+
                 code_display = f"[{location_code}]" if location_code else ""
                 print(f"  ✓ {code_display} {location}: GL=${gl_amt:,.2f} PO=${po_amt:,.2f} Other=${other_amt:,.2f}")
               else:
@@ -694,7 +798,7 @@ def process_excel_import(file):
                   Location=location,
                   Total_Cost=total_cost
                 )
-              
+
               import_stats[table_name] += 1
 
       except Exception as sheet_error:
@@ -1192,102 +1296,3 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
-
-@anvil.server.callable
-def get_spending_chart_figure(table_name='summary_2025'):
-  import plotly.graph_objects as go
-
-  raw_data = get_spending_summary_by_table(table_name)
-
-  if not raw_data or (isinstance(raw_data[0], (list, tuple)) and raw_data[0][0] in ("No Data", "Error", "Invalid table")):
-    return {"data": [], "layout": {"title": "No data available"}}
-
-  locations = []
-  gls = []
-  pos = []
-  others = []
-
-  for row in raw_data:
-    if isinstance(row, (list, tuple)) and len(row) >= 4:
-      loc, gl, po, oth = row[:4]
-      locations.append(str(loc).strip())
-      gls.append(float(gl or 0))
-      pos.append(float(po or 0))
-      others.append(float(oth or 0))
-    else:
-      continue
-
-  if not locations:
-    return {"data": [], "layout": {"title": "No locations found"}}
-
-  row_totals = [g + p + o for g, p, o in zip(gls, pos, others)]
-  grand_total = sum(row_totals)
-
-  title_map = {
-    'summary_2025': '2025 Spending Breakdown',
-    'inventory_summary_total': 'Total Inventory',
-    'inventory_summary_office': 'Office Inventory',
-    'inventory_summary_internal': 'Internal Inventory',
-    'inventory_summary_center': 'Center Inventory'
-  }
-  title_prefix = title_map.get(table_name, table_name.replace('_', ' ').title())
-
-  fig = go.Figure()
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=gls,
-    name='GL Amt',
-    marker_color='#1976D2',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in gls],
-    textposition='auto',
-    hovertemplate='%{x}<br>GL Amt: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=pos,
-    name='PO Orders',
-    marker_color='#388E3C',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in pos],
-    textposition='auto',
-    hovertemplate='%{x}<br>PO Orders: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=others,
-    name='Other',
-    marker_color='#F57C00',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in others],
-    textposition='auto',
-    hovertemplate='%{x}<br>Other: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.update_layout(
-    barmode='stack',
-    title={
-      'text': f"{title_prefix}<br><sup>Total: ${grand_total:,.2f}</sup>",
-      'x': 0.5,
-      'xanchor': 'center',
-      'font': {'size': 20}
-    },
-    xaxis_title='Location',
-    xaxis_tickangle=-45,
-    xaxis_tickfont_size=11,
-    yaxis_title='Amount ($)',
-    yaxis_tickformat='$,.0f',
-    legend_orientation='h',
-    legend_yanchor='bottom',
-    legend_y=1.02,
-    legend_xanchor='center',
-    legend_x=0.5,
-    hovermode='x unified',
-    plot_bgcolor='#f8f9fa',
-    paper_bgcolor='white',
-    margin=dict(t=110, b=80, l=70, r=30),
-    bargap=0.18,
-    height=600
-  )
-
-  return fig.to_dict()
