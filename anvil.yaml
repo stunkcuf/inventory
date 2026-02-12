@@ -139,6 +139,18 @@ db_schema:
     - admin_ui: {width: 200}
       name: date_filled
       type: date
+    - admin_ui: {order: 4, width: 200}
+      name: Location_Code
+      type: number
+    - admin_ui: {order: 5, width: 200}
+      name: GL_Amt
+      type: number
+    - admin_ui: {order: 6, width: 200}
+      name: PO_Amt
+      type: number
+    - admin_ui: {order: 7, width: 200}
+      name: Other_Amt
+      type: number
     server: full
     title: inventory_summary_center
   inventory_summary_internal:
@@ -159,6 +171,18 @@ db_schema:
     - admin_ui: {width: 200}
       name: date_filled
       type: date
+    - admin_ui: {order: 5, width: 200}
+      name: Location_Code
+      type: number
+    - admin_ui: {order: 6, width: 200}
+      name: GL_Amt
+      type: number
+    - admin_ui: {order: 7, width: 200}
+      name: PO_Amt
+      type: number
+    - admin_ui: {order: 8, width: 200}
+      name: Other_Amt
+      type: number
     server: full
     title: inventory_summary_internal
   inventory_summary_office:
@@ -179,6 +203,18 @@ db_schema:
     - admin_ui: {width: 200}
       name: date_filled
       type: date
+    - admin_ui: {order: 5, width: 200}
+      name: Location_Code
+      type: number
+    - admin_ui: {order: 6, width: 200}
+      name: GL_Amt
+      type: number
+    - admin_ui: {order: 7, width: 200}
+      name: PO_Amt
+      type: number
+    - admin_ui: {order: 8, width: 200}
+      name: Other_Amt
+      type: number
     server: full
     title: inventory_summary_office
   inventory_summary_total:
@@ -199,6 +235,18 @@ db_schema:
     - admin_ui: {width: 200}
       name: date_filled
       type: date
+    - admin_ui: {order: 5, width: 200}
+      name: Location_Code
+      type: number
+    - admin_ui: {order: 6, width: 200}
+      name: GL_Amt
+      type: number
+    - admin_ui: {order: 7, width: 200}
+      name: PO_Amt
+      type: number
+    - admin_ui: {order: 8, width: 200}
+      name: Other_Amt
+      type: number
     server: full
     title: inventory_summary_total
   machform_orders:
@@ -400,7 +448,7 @@ renamed: true
 runtime_options:
   client_version: '3'
   legacy_features: {bootstrap3: true, class_names: true}
-  server_spec: {base: python310-standard}
+  server_spec: {base: python310-minimal}
   server_spec_disabled: {base: python310-minimal, requirements: ''}
   server_version: python3-sandbox
   version: 3

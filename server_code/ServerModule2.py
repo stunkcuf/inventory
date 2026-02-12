@@ -172,13 +172,11 @@ def get_spending_summary():
 @anvil.server.callable
 def get_spending_summary_by_table(table_name='summary_2025'):
   """
-  VERSION 2: Get spending summary from a specific table with AGGREGATION
-  WHY: Handles both column name formats and aggregates multiple rows per location
-  AGGREGATES: Sums multiple entries for the same location
+  Get spending summary with GL, PO, Other breakdown
+  Returns: list of tuples (location, gl_amt, po_amt, other_amt)
   """
   print(f"=== get_spending_summary_by_table called for {table_name} ===")
 
-  # Validate table name to prevent errors
   valid_tables = [
     'summary_2025',
     'inventory_summary_total',
@@ -189,82 +187,66 @@ def get_spending_summary_by_table(table_name='summary_2025'):
 
   if table_name not in valid_tables:
     print(f"Invalid table name: {table_name}")
-    return [("No Data", 0)]
+    return [("No Data", 0, 0, 0)]
 
   try:
-    # Get the table dynamically
     table = getattr(app_tables, table_name)
     data = list(table.search())
 
     print(f"Found {len(data)} rows in {table_name}")
 
     if not data:
-      return [("No Data", 0)]
+      return [("No Data", 0, 0, 0)]
 
-    # Check first row to see what columns exist
-    first_row = data[0]
-    available_columns = list(first_row.keys())
-    print(f"Available columns in {table_name}: {available_columns}")
+    results = []
 
-    # Build results - aggregate by location
-    location_totals = {}
+    if table_name in ['summary_2025', 'inventory_summary_office', 
+                      'inventory_summary_center', 'inventory_summary_internal']:
+      # Return full breakdown for all summary tables
+      for r in data:
+        location = r.get('Location') or "Unknown"
+        location_code = r.get('Location_Code')  # This is a number
+        gl_amt = r.get('GL_Amt') or 0
+        po_amt = r.get('PO_Amt') or 0
+        other_amt = r.get('Other_Amt') or 0
 
-    for r in data:
-      # Try different location column variations
-      location = (
-        r.get('location_name') or      # inventory summary tables (lowercase)
-        r.get('Location') or            # summary_2025 format
-        r.get('Location Name') or 
-        r.get('Location #') or 
-        None
-      )
-
-      # Try different cost column variations
-      total_cost = (
-        r.get('total_amt') or          # inventory summary tables (lowercase)
-        r.get('Total_Cost') or         # summary_2025 format
-        r.get('Total Amt') or 
-        r.get('Total_Amt') or 
-        0
-      )
-
-      # Convert to float if needed
-      if isinstance(total_cost, str):
-        total_cost = clean_num(total_cost)
-      else:
-        total_cost = float(total_cost) if total_cost else 0
-
-      # Skip empty rows
-      if location and location.strip():
-        location = location.strip()
-
-        # Aggregate totals by location
-        if location in location_totals:
-          location_totals[location] += total_cost
+        # Format display name with code if it exists
+        if location_code:
+          display_name = f"[{location_code}] {location}"
         else:
-          location_totals[location] = total_cost
+          display_name = location
 
-    # Convert to list of tuples and filter out zeros
-    results = [
-      (loc, cost) 
-      for loc, cost in location_totals.items() 
-      if cost > 0
-    ]
+        results.append((display_name, gl_amt, po_amt, other_amt))
+        print(f"  {display_name}: GL=${gl_amt}, PO=${po_amt}, Other=${other_amt}")
 
-    # Sort by location name
-    results.sort(key=lambda x: x[0])
+    else:
+      # Other tables - put total in "other" column
+      for r in data:
+        location = (
+          r.get('location_name') or 
+          r.get('Location') or 
+          r.get('Location Name') or 
+          "Unknown"
+        )
 
-    print(f"Aggregated {len(data)} rows into {len(results)} locations")
-    for loc, cost in results:
-      print(f"  {loc}: ${cost:,.2f}")
+        total_cost = (
+          r.get('total_amt') or 
+          r.get('Total_Cost') or 
+          r.get('Total Amt') or 
+          0
+        )
 
-    return results if results else [("No Data", 0)]
+        results.append((location, 0, 0, total_cost))
+        print(f"  {location}: Total=${total_cost}")
+
+    print(f"Returning {len(results)} results")
+    return results
 
   except Exception as e:
     print(f"Error loading {table_name}: {e}")
     import traceback
     traceback.print_exc()
-    return [("No Data", 0)]
+    return [("Error", 0, 0, 0)]
 
 
 @anvil.server.callable
@@ -600,26 +582,119 @@ def process_excel_import(file):
             import_stats[table_name] += 1
 
           elif "summary" in table_name:
-            # NEW: Handle all summary tables (2025, total, office, internal, center)
+            # Handle all summary tables
             location = None
+            location_code = None  # Will store as integer or None
+            gl_amt = 0
+            po_amt = 0
+            other_amt = 0
             total_cost = 0
-
-            for loc_col in ['Location Name', 'Location', 'Location #']:
-              if loc_col in raw and raw[loc_col]:
-                location = raw[loc_col]
-                break
-
-            for cost_col in ['Total Amt', 'Total_Amt', 'Total_Cost', 'Total Cost', 'Amt', 'GL Amt']:
-              if cost_col in raw and raw[cost_col]:
-                total_cost = clean_num(raw[cost_col])
-                if total_cost > 0:
+            
+            # Extract Location Code (Column B) - store as NUMBER
+            for loc_code_col in ['Location #', 'Location Code', 'Location_Code', 'Loc Code', 'Code', 'Loc #', 'Site Code', 'Site #']:
+              if loc_code_col in raw and pd.notna(raw[loc_code_col]):
+                raw_value = raw[loc_code_col]
+                
+                # Try to convert to integer
+                try:
+                  if isinstance(raw_value, (int, float)):
+                    location_code = int(raw_value)  # Store as actual number
+                  elif isinstance(raw_value, str):
+                    # Try to parse string as number
+                    location_code = int(float(raw_value.strip()))
+                  
+                  if location_code:
+                    break
+                except (ValueError, TypeError):
+                  # If it's not a number (like "NELC"), skip it - it's probably the location name
+                  continue
+            
+            # Extract Location Name
+            for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
+              if loc_col in raw and pd.notna(raw[loc_col]):
+                location = str(raw[loc_col]).strip()
+                if location:
                   break
-
-            if location:
-              getattr(app_tables, table_name).add_row(
-                Location=location,
-                Total_Cost=total_cost
-              )
+            
+            # Extract GL Amount (Column H)
+            for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
+              if gl_col in raw and pd.notna(raw[gl_col]):
+                gl_amt = clean_num(raw[gl_col])
+                if gl_amt != 0:
+                  break
+            
+            # Extract PO Amount (Column I)
+            for po_col in ['PO Amt', 'PO_Amt', 'PO Orders', 'PO Amount', 'Purchase Orders', 'PO']:
+              if po_col in raw and pd.notna(raw[po_col]):
+                po_amt = clean_num(raw[po_col])
+                if po_amt != 0:
+                  break
+            
+            # Extract Other Amount (Column J)
+            for other_col in ['Other Amt', 'Other_Amt', 'Other', 'Misc', 'Miscellaneous']:
+              if other_col in raw and pd.notna(raw[other_col]):
+                other_amt = clean_num(raw[other_col])
+                if other_amt != 0:
+                  break
+            
+            # Extract Total Amount (Column K)
+            for cost_col in ['Total Amt', 'Total_Amt', 'Total Cost', 'Total_Cost', 'Total', 'Amount', 'Amt']:
+              if cost_col in raw and pd.notna(raw[cost_col]):
+                total_cost = clean_num(raw[cost_col])
+                if total_cost != 0:
+                  break
+            
+            # Validation warning
+            if table_name == "summary_2025":
+              calculated_total = gl_amt + po_amt + other_amt
+              if abs(calculated_total - total_cost) > 0.01 and total_cost > 0:
+                print(f"  ⚠️  Totals mismatch for {location}: GL+PO+Other=${calculated_total:.2f}, Total=${total_cost:.2f}")
+            
+            # Insert row
+            if location or location_code:
+              # All summary tables get full breakdown
+              if table_name in ["summary_2025", "inventory_summary_office", 
+                                "inventory_summary_center", "inventory_summary_internal"]:
+                
+                table = getattr(app_tables, table_name)
+                
+                # Build row data based on available columns
+                # Check first row to see which column names exist
+                sample_row = list(table.search())
+                has_Location = 'Location' in (sample_row[0].keys() if sample_row else [])
+                has_Total_Cost = 'Total_Cost' in (sample_row[0].keys() if sample_row else [])
+                
+                # Build kwargs dynamically
+                kwargs = {
+                  'Location_Code': location_code,
+                  'GL_Amt': gl_amt,
+                  'PO_Amt': po_amt,
+                  'Other_Amt': other_amt,
+                }
+                
+                # Add location with correct column name
+                if has_Location or table_name == "summary_2025":
+                  kwargs['Location'] = location or "Unknown"
+                else:
+                  kwargs['location_name'] = location or "Unknown"
+                
+                # Add total with correct column name
+                if has_Total_Cost or table_name == "summary_2025":
+                  kwargs['Total_Cost'] = total_cost
+                else:
+                  kwargs['total_amt'] = total_cost
+                
+                table.add_row(**kwargs)
+                
+                code_display = f"[{location_code}]" if location_code else ""
+                print(f"  ✓ {code_display} {location}: GL=${gl_amt:,.2f} PO=${po_amt:,.2f} Other=${other_amt:,.2f}")
+              else:
+                # Any other future summary tables - simpler format
+                getattr(app_tables, table_name).add_row(
+                  Location=location,
+                  Total_Cost=total_cost
+                )
+              
               import_stats[table_name] += 1
 
       except Exception as sheet_error:
@@ -1117,3 +1192,102 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
+
+@anvil.server.callable
+def get_spending_chart_figure(table_name='summary_2025'):
+  import plotly.graph_objects as go
+
+  raw_data = get_spending_summary_by_table(table_name)
+
+  if not raw_data or (isinstance(raw_data[0], (list, tuple)) and raw_data[0][0] in ("No Data", "Error", "Invalid table")):
+    return {"data": [], "layout": {"title": "No data available"}}
+
+  locations = []
+  gls = []
+  pos = []
+  others = []
+
+  for row in raw_data:
+    if isinstance(row, (list, tuple)) and len(row) >= 4:
+      loc, gl, po, oth = row[:4]
+      locations.append(str(loc).strip())
+      gls.append(float(gl or 0))
+      pos.append(float(po or 0))
+      others.append(float(oth or 0))
+    else:
+      continue
+
+  if not locations:
+    return {"data": [], "layout": {"title": "No locations found"}}
+
+  row_totals = [g + p + o for g, p, o in zip(gls, pos, others)]
+  grand_total = sum(row_totals)
+
+  title_map = {
+    'summary_2025': '2025 Spending Breakdown',
+    'inventory_summary_total': 'Total Inventory',
+    'inventory_summary_office': 'Office Inventory',
+    'inventory_summary_internal': 'Internal Inventory',
+    'inventory_summary_center': 'Center Inventory'
+  }
+  title_prefix = title_map.get(table_name, table_name.replace('_', ' ').title())
+
+  fig = go.Figure()
+
+  fig.add_trace(go.Bar(
+    x=locations,
+    y=gls,
+    name='GL Amt',
+    marker_color='#1976D2',
+    text=[f"${v:,.0f}" if v >= 500 else "" for v in gls],
+    textposition='auto',
+    hovertemplate='%{x}<br>GL Amt: $%{y:,.2f}<extra></extra>'
+  ))
+
+  fig.add_trace(go.Bar(
+    x=locations,
+    y=pos,
+    name='PO Orders',
+    marker_color='#388E3C',
+    text=[f"${v:,.0f}" if v >= 500 else "" for v in pos],
+    textposition='auto',
+    hovertemplate='%{x}<br>PO Orders: $%{y:,.2f}<extra></extra>'
+  ))
+
+  fig.add_trace(go.Bar(
+    x=locations,
+    y=others,
+    name='Other',
+    marker_color='#F57C00',
+    text=[f"${v:,.0f}" if v >= 500 else "" for v in others],
+    textposition='auto',
+    hovertemplate='%{x}<br>Other: $%{y:,.2f}<extra></extra>'
+  ))
+
+  fig.update_layout(
+    barmode='stack',
+    title={
+      'text': f"{title_prefix}<br><sup>Total: ${grand_total:,.2f}</sup>",
+      'x': 0.5,
+      'xanchor': 'center',
+      'font': {'size': 20}
+    },
+    xaxis_title='Location',
+    xaxis_tickangle=-45,
+    xaxis_tickfont_size=11,
+    yaxis_title='Amount ($)',
+    yaxis_tickformat='$,.0f',
+    legend_orientation='h',
+    legend_yanchor='bottom',
+    legend_y=1.02,
+    legend_xanchor='center',
+    legend_x=0.5,
+    hovermode='x unified',
+    plot_bgcolor='#f8f9fa',
+    paper_bgcolor='white',
+    margin=dict(t=110, b=80, l=70, r=30),
+    bargap=0.18,
+    height=600
+  )
+
+  return fig.to_dict()
