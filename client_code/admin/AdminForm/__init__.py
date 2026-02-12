@@ -44,8 +44,8 @@ class AdminForm(AdminFormTemplate):
           Notification(f"Import failed: {error_msg}", style="danger", timeout=10).show()
 
       except Exception as e:
+        print(f"❌ Error in file_loader_1_change: {e}")
         Notification(f"Import error: {str(e)}", style="danger").show()
-        print(f"Import exception: {e}")
     else:
       Notification("Please select a file to upload.", style="warning").show()
 
@@ -57,21 +57,14 @@ class AdminForm(AdminFormTemplate):
 
   def shopping_list_link_click(self, **event_args):
     """Navigate to Shopping List"""
-    from ..ShoppingListForm import ShoppingListForm
-    main_layout = get_open_form()
-    main_layout.content_panel.clear()
-    main_layout.content_panel.add_component(ShoppingListForm())
+    main_form = get_open_form()
+    main_form.link_shopping_list_click()
 
   def link_order_history_click(self, **event_args):
     """Navigate to Order History"""
     print("AdminForm: Order History link clicked!")
-    try:
-      main_form = get_open_form()
-      print(f"Got main form: {main_form}")
-      main_form.link_order_history_click()
-      print("Called main form navigation")
-    except Exception as e:
-      print(f"Navigation error: {e}")
+    main_form = get_open_form()
+    main_form.link_order_history_click()
 
   @handle("link_audit_logs", "click")
   def link_audit_logs_click(self, **event_args):
@@ -83,5 +76,5 @@ class AdminForm(AdminFormTemplate):
       main_layout.content_panel.add_component(AuditLogForm())
       print("Navigated to Audit Logs")
     except Exception as e:
-      print(f"Audit logs navigation error: {e}")
+      print(f"❌ Error in link_audit_logs_click: {e}")
       Notification(f"Error loading audit logs: {str(e)}", style="danger").show()

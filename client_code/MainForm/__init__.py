@@ -3,7 +3,7 @@ from anvil import *
 import anvil.users
 import anvil.server
 from .InventoryForm import InventoryForm
-from .AdminForm import AdminForm
+from ..admin.AdminForm import AdminForm  # FIXED - admin is separate package
 from .SummaryForm import SummaryForm
 from .OrderHistoryForm import OrderHistoryForm
 from .ShoppingListForm import ShoppingListForm
@@ -24,13 +24,11 @@ class MainForm(MainFormTemplate):
     try:
       self.user_role = anvil.server.call('get_current_user_role')
     except:
-      # Fallback: Check role directly from user table
       self.user_role = self.user.get('role', 'staff')
       print(f"Using fallback role check: {self.user_role}")
 
     # STAFF: Only see Inventory and Order Filling
     if self.user_role != 'admin':
-      # Hide all admin features
       if hasattr(self, 'link_admin'):
         self.link_admin.visible = False
       if hasattr(self, 'link_summaries'):
@@ -56,7 +54,6 @@ class MainForm(MainFormTemplate):
 
   @handle("link_admin", "click")
   def link_admin_click(self, **event_args):
-    # Double-check admin access
     if self.user_role == 'admin':
       self.content_panel.clear()
       self.content_panel.add_component(AdminForm())
@@ -65,7 +62,6 @@ class MainForm(MainFormTemplate):
 
   @handle("link_summaries", "click")
   def link_summaries_click(self, **event_args):
-    # Admin only
     if self.user_role == 'admin':
       self.content_panel.clear()
       self.content_panel.add_component(SummaryForm())
@@ -74,7 +70,6 @@ class MainForm(MainFormTemplate):
 
   @handle("link_shopping_list", "click")
   def link_shopping_list_click(self, **event_args):
-    # Admin only
     if self.user_role == 'admin':
       self.content_panel.clear()
       self.content_panel.add_component(ShoppingListForm())
@@ -83,7 +78,6 @@ class MainForm(MainFormTemplate):
 
   @handle("link_order_history", "click")
   def link_order_history_click(self, **event_args):
-    # Admin only
     if self.user_role == 'admin':
       print("Order History clicked!")
       self.content_panel.clear()
@@ -93,14 +87,12 @@ class MainForm(MainFormTemplate):
 
   @handle("order_filling", "click")
   def order_filling_click(self, **event_args):
-    # Everyone can access Order Filling
     print("Order Filling clicked!")
     self.content_panel.clear()
     self.content_panel.add_component(OrderFillForm())
 
   @handle("link_logout", "click")
   def link_logout_click(self, **event_args):
-    """Logout current user"""
     if confirm("Are you sure you want to logout?"):
       anvil.users.logout()
       anvil.open_form('MainForm')

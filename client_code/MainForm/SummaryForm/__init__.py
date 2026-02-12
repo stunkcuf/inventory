@@ -1,8 +1,6 @@
 from ._anvil_designer import SummaryFormTemplate
 from anvil import *
-import anvil.users
 import anvil.server
-import plotly.graph_objects as go
 
 class SummaryForm(SummaryFormTemplate):
   def __init__(self, **properties):
@@ -15,9 +13,16 @@ class SummaryForm(SummaryFormTemplate):
       options = anvil.server.call('get_available_summary_tables')
       if hasattr(self, 'dd_summary_selector'):
         self.dd_summary_selector.items = options
-        self.dd_summary_selector.selected_value = 'summary_2025'
-    except Exception as e:
-      print(f"Error loading summary options: {e}")
+        # Prefer 2025 Summary
+        for friendly, value in options:
+          if '2025' in friendly or value == 'summary_2025':
+            self.dd_summary_selector.selected_value = value
+            break
+        else:
+          if options:
+            self.dd_summary_selector.selected_value = options[0][1]
+    except Exception:
+      Notification("Failed to load summary options", style="error", timeout=4).show()
 
   def dd_summary_selector_change(self, **event_args):
     self.refresh_summary()
@@ -26,112 +31,59 @@ class SummaryForm(SummaryFormTemplate):
     try:
       selected_table = 'summary_2025'
       if hasattr(self, 'dd_summary_selector') and self.dd_summary_selector.selected_value:
-        selected_table = self.dd_summary_selector.selected_value
-
-      data = anvil.server.call('get_spending_summary_by_table', selected_table)
-
-      if data and len(data) > 0 and data[0][0] != "No Data":
-        locations = [row[0] for row in data]
-        costs = [row[1] for row in data]
-        total_spending = sum(costs)
-
-        title_map = {
-          'summary_2025': '2025',
-          'inventory_summary_total': 'Total',
-          'inventory_summary_office': 'Office',
-          'inventory_summary_internal': 'Internal',
-          'inventory_summary_center': 'Center'
-        }
-        title_prefix = title_map.get(selected_table, selected_table)
-
-        # Create bar chart
-        self.plot_spending.data = go.Bar(
-          x=locations, 
-          y=costs,
-          marker_color='#2196F3',
-          text=[f'${c:,.2f}' for c in costs],
-          textposition='auto',
-          hovertemplate='<b>%{x}</b><br>Total: $%{y:,.2f}<extra></extra>'
-        )
-
-        # MOBILE RESPONSIVE LAYOUT
-        self.plot_spending.layout = {
-          'title': {
-            'text': f"{title_prefix} Spending<br><sup>Total: ${total_spending:,.2f}</sup>",
-            'x': 0.5,
-            'xanchor': 'center',
-            'font': {'size': 18}
-          },
-          'xaxis': {
-            'title': 'Location',
-            'tickangle': -45,
-            'tickfont': {'size': 11},
-            'automargin': True  # Prevents label cutoff on mobile
-          },
-          'yaxis': {
-            'title': 'Cost ($)',
-            'tickformat': '$,.0f',
-            'tickfont': {'size': 11}
-          },
-          'plot_bgcolor': '#f5f5f5',
-          'paper_bgcolor': 'white',
-          'margin': {'t': 100, 'b': 80, 'l': 60, 'r': 20},
-          'height': None,  # Let it auto-size
-          'showlegend': False,
-          'autosize': True,  # KEY: Makes chart responsive
-          'responsive': True  # KEY: Resizes on window change
-        }
-
-        print(f"Summary refreshed: {len(locations)} locations, ${total_spending:,.2f} total")
-
-      else:
-        # Show empty state
-        self.plot_spending.data = []
-        self.plot_spending.layout = {
-          'title': "No data available",
-          'xaxis': {'visible': False},
-          'yaxis': {'visible': False},
-          'annotations': [{
-            'text': 'No data to display<br><sub>Import an Excel file</sub>',
-            'xref': 'paper',
-            'yref': 'paper',
-            'x': 0.5,
-            'y': 0.5,
-            'xanchor': 'center',
-            'yanchor': 'middle',
-            'showarrow': False,
-            'font': {'size': 16, 'color': '#999'}
-          }],
-          'autosize': True,
-          'responsive': True
-        }
-
+        sel = self.dd_summary_selector.selected_value
+        selected_table = sel[1] if isinstance(sel, tuple) else sel
+  
+        # Get the ready-to-render Plotly figure dict from the server
+      fig_dict = anvil.server.call('get_spending_chart_figure', selected_table)
+  
+      if not fig_dict or 'data' not in fig_dict or len(fig_dict.get('data', [])) == 0:
+        self._show_no_data()
+        return
+  
+        # Set the figure directly (Remove the self.plot_spending.figure = empty_fig line)
+      self.plot_spending.figure = fig_dict
+      print(f"Chart rendered successfully for table: {selected_table}")
+  
     except Exception as e:
-      print(f"Error refreshing summary: {e}")
-      import traceback
-      traceback.print_exc()
-
-      self.plot_spending.data = []
-      self.plot_spending.layout = {
-        'title': "Error loading data",
-        'xaxis': {'visible': False},
-        'yaxis': {'visible': False},
-        'annotations': [{
-          'text': f'Error: {str(e)}',
-          'xref': 'paper',
-          'yref': 'paper',
-          'x': 0.5,
-          'y': 0.5,
-          'xanchor': 'center',
-          'yanchor': 'middle',
-          'showarrow': False,
-          'font': {'size': 14, 'color': '#f44336'}
-        }],
-        'autosize': True,
-        'responsive': True
+      print(f"Error in refresh_summary: {repr(e)}")
+      self._show_error(f"Failed to load chart: {str(e)}")
+  
+    def _show_no_data(self):
+      empty_fig = {
+        "data": [],
+        "layout": {
+          "title": "No data available",
+          "annotations": [{
+            "text": "No spending breakdown found<br>Try refreshing or check your import",
+            "xref": "paper", "yref": "paper",
+            "x": 0.5, "y": 0.5,
+            "showarrow": False,
+            "font": {"size": 18, "color": "#666"}
+          }],
+          "xaxis": {"visible": False},
+          "yaxis": {"visible": False}
+        }
       }
+      # FIXED: Was using error_fig, now uses empty_fig
+      self.plot_spending.figure = empty_fig
+  
+  def _show_error(self, msg="Unknown error"):
+    error_fig = {
+      "data": [],
+      "layout": {
+        "title": "Chart Error",
+        "annotations": [{
+          "text": f"Error: {msg}",
+          "xref": "paper", "yref": "paper",
+          "x": 0.5, "y": 0.5,
+          "showarrow": False,
+          "font": {"size": 16, "color": "red"}
+        }]
+      }
+    }
+    self.plot_spending.figure = error_fig
 
   def btn_refresh_click(self, **event_args):
-    """Manual refresh button"""
     self.refresh_summary()
-    Notification("Summary refreshed", style="info", timeout=2).show()
+    Notification("Summary refreshed", style="success", timeout=2).show()
