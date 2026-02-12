@@ -11,6 +11,93 @@ from datetime import datetime
 import openpyxl
 
 
+# --- LOCATION MAPPING SYSTEM ---
+# Master lookup table for location codes and names
+LOCATION_MAP = {
+  10: "Main Office",
+  11: "NELC",
+  12: "NELC", 
+  14: "PELC",
+  15: "Annex",
+  16: "LaGrande",
+  21: "CWELC",
+  22: "Umatilla",
+  24: "Pine Tree",
+  25: "PEHS",
+  26: "PEHS",
+  31: "Victory Square",
+  32: "HCSR",
+  33: "HCSR Lil Pups",
+  34: "FACE",
+  41: "Milton-Freewater",
+  51: "Irrigon",
+  60: "Airport Way",
+  62: "PELC",
+  63: "Enterprise",
+  64: "CCR&R",
+  68: "Bus Barn",
+  69: "Patriot Heights",
+  441: "MO"
+}
+
+def normalize_location_name(name):
+  """Clean up location name variations"""
+  if not name:
+    return name
+
+  name = str(name).strip()
+
+  # Handle common variations
+  variations = {
+    'Milton Freewater': 'Milton-Freewater',
+    'Milton-Freewate': 'Milton-Freewater',
+    'MiltonFreewater': 'Milton-Freewater',
+    'Pinetree': 'Pine Tree',
+    'LaG': 'LaGrande',
+    'La Grande': 'LaGrande',
+    'Stanfield/PH': 'Patriot Heights',
+    'PH/Stanfield': 'Patriot Heights',
+    'Stanfield / PH': 'Patriot Heights',
+    'Lil Pups 3': 'HCSR Lil Pups',
+    'Lil Pups 1': 'HCSR Lil Pups',
+    'HCSR Lil Pups 1': 'HCSR Lil Pups',
+    'HCSR Lil Pups 3': 'HCSR Lil Pups',
+    'Main Office WIC': 'Main Office',
+    'MO WIC': 'Main Office',
+    'MO HR': 'Main Office',
+  }
+
+  return variations.get(name, name)
+
+def get_complete_location_display(location_code, location_name):
+  """
+  Build complete location display: [code] name
+  Uses master mapping to fill in missing parts
+  """
+  # Normalize the name if provided
+  if location_name:
+    location_name = normalize_location_name(location_name)
+
+  # Try to get complete info from mapping
+  if location_code and location_code in LOCATION_MAP:
+    canonical_name = LOCATION_MAP[location_code]
+    return f"[{location_code}] {canonical_name}"
+
+  # If we have both, use them
+  if location_code and location_name:
+    return f"[{location_code}] {location_name}"
+
+  # If only code, use it
+  if location_code:
+    return f"[{location_code}] Location {location_code}"
+
+  # If only name, return as-is (no code available)
+  if location_name:
+    return location_name
+
+  return "Unknown"
+
+
 # --- 1. HELPERS ---
 def clean_num(val):
   """UNCHANGED - Your original code works perfectly"""
@@ -204,17 +291,15 @@ def get_spending_summary_by_table(table_name='summary_2025'):
                       'inventory_summary_center', 'inventory_summary_internal']:
       # Return full breakdown for all summary tables
       for r in data:
-        location = r.get('Location') or "Unknown"
+        # Try both column name formats
+        location = r.get('Location') or r.get('location_name') or "Unknown"
         location_code = r.get('Location_Code')  # This is a number
         gl_amt = r.get('GL_Amt') or 0
         po_amt = r.get('PO_Amt') or 0
         other_amt = r.get('Other_Amt') or 0
 
-        # Format display name with code if it exists
-        if location_code:
-          display_name = f"[{location_code}] {location}"
-        else:
-          display_name = location
+        # Location name already has formatting from import, use as-is
+        display_name = location
 
         results.append((display_name, gl_amt, po_amt, other_amt))
         print(f"  {display_name}: GL=${gl_amt}, PO=${po_amt}, Other=${other_amt}")
@@ -263,6 +348,136 @@ def get_available_summary_tables():
     ('Internal Inventory Summary', 'inventory_summary_internal'),
     ('Center Inventory Summary', 'inventory_summary_center'),
   ]
+
+@anvil.server.callable
+def get_spending_chart_figure(table_name='summary_2025'):
+  """
+  Generate a clean Plotly figure for spending breakdown
+  Only shows bars for categories with non-zero values
+  Returns a Plotly figure dict ready for client rendering
+  """
+  print(f"=== Generating chart for {table_name} ===")
+
+  # Get the data
+  data = get_spending_summary_by_table(table_name)
+
+  if not data or len(data) == 0:
+    print("No data found")
+    return None
+
+  # Aggregate by location and filter out Unknown/$0 entries
+  location_totals = {}
+
+  for item in data:
+    location, gl, po, other = item
+
+    # Skip if location is "Unknown" and all amounts are 0
+    if location == "Unknown" and gl == 0 and po == 0 and other == 0:
+      continue
+
+    # Skip if all amounts are 0
+    if gl == 0 and po == 0 and other == 0:
+      continue
+
+    # Aggregate by location
+    if location not in location_totals:
+      location_totals[location] = {'gl': 0, 'po': 0, 'other': 0}
+
+    location_totals[location]['gl'] += gl
+    location_totals[location]['po'] += po
+    location_totals[location]['other'] += other
+
+  if len(location_totals) == 0:
+    print("No spending found after filtering")
+    return None
+
+  # Sort by total spending (descending)
+  sorted_locations = sorted(
+    location_totals.items(), 
+    key=lambda x: x[1]['gl'] + x[1]['po'] + x[1]['other'],
+    reverse=True
+  )
+
+  # Separate into lists
+  locations = [loc for loc, _ in sorted_locations]
+  gl_amounts = [totals['gl'] for _, totals in sorted_locations]
+  po_amounts = [totals['po'] for _, totals in sorted_locations]
+  other_amounts = [totals['other'] for _, totals in sorted_locations]
+
+  # Build traces - only include if there's ANY spending in that category
+  traces = []
+
+  # Check if there's any GL spending across all locations
+  if sum(gl_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'GL Spending',
+      'x': locations,
+      'y': gl_amounts,
+      'marker': {'color': '#4A90E2'},  # Blue
+      'hovertemplate': '<b>%{x}</b><br>GL: $%{y:,.2f}<extra></extra>'
+    })
+
+  # Check if there's any PO spending
+  if sum(po_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'PO Orders',
+      'x': locations,
+      'y': po_amounts,
+      'marker': {'color': '#50C878'},  # Green
+      'hovertemplate': '<b>%{x}</b><br>PO: $%{y:,.2f}<extra></extra>'
+    })
+
+  # Check if there's any Other spending
+  if sum(other_amounts) > 0:
+    traces.append({
+      'type': 'bar',
+      'name': 'Other',
+      'x': locations,
+      'y': other_amounts,
+      'marker': {'color': '#FF9500'},  # Orange
+      'hovertemplate': '<b>%{x}</b><br>Other: $%{y:,.2f}<extra></extra>'
+    })
+
+  # If no traces at all, return None
+  if len(traces) == 0:
+    print("No spending found in any category")
+    return None
+
+  # Build the figure
+  figure = {
+    'data': traces,
+    'layout': {
+      'title': {
+        'text': f'Spending Breakdown - {table_name.replace("_", " ").title()}',
+        'font': {'size': 20}
+      },
+      'barmode': 'stack',
+      'xaxis': {
+        'title': 'Location',
+        'tickangle': -45,
+        'automargin': True
+      },
+      'yaxis': {
+        'title': 'Amount ($)',
+        'tickformat': '$,.0f'
+      },
+      'hovermode': 'closest',
+      'showlegend': True,
+      'legend': {
+        'orientation': 'h',
+        'yanchor': 'bottom',
+        'y': 1.02,
+        'xanchor': 'right',
+        'x': 1
+      },
+      'margin': {'b': 120, 't': 60, 'l': 60, 'r': 20}
+    }
+  }
+
+  print(f"Generated figure with {len(traces)} traces for {len(locations)} locations (filtered from {len(data)} raw entries)")
+  return figure
 
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
 @anvil.server.callable
@@ -389,15 +604,17 @@ def process_excel_import(file):
           if not item_name or item_name in ["None", "Item", "nan"]:
             continue
 
-          if item_name.endswith(':'):
-            current_subcategory = item_name.rstrip(':')
-            print(f"  Found subcategory: {current_subcategory}")
-            continue
+          # Only detect subcategories in calcs/inventory sheets, NOT summary sheets
+          if "calcs" in table_name.lower() or table_name == "inventory":
+            if item_name.endswith(':'):
+              current_subcategory = item_name.rstrip(':')
+              print(f"  Found subcategory: {current_subcategory}")
+              continue
 
-          if item_name.isupper() and len(item_name.split()) <= 3:
-            current_subcategory = item_name
-            print(f"  Found subcategory: {current_subcategory}")
-            continue
+            if item_name.isupper() and len(item_name.split()) <= 3:
+              current_subcategory = item_name
+              print(f"  Found subcategory: {current_subcategory}")
+              continue
 
           # --- UNCHANGED: Your comprehensive URL extraction (works perfectly) ---
           excel_row_num = idx + header_row_idx + 2
@@ -612,9 +829,14 @@ def process_excel_import(file):
             # Extract Location Name
             for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
               if loc_col in raw and pd.notna(raw[loc_col]):
-                location = str(raw[loc_col]).strip()
-                if location:
+                loc_value = str(raw[loc_col]).strip()
+                # Skip if it's just a number or looks like a code
+                if loc_value and not loc_value.replace('.', '').replace('-', '').isdigit():
+                  location = loc_value
                   break
+            
+            # Use the complete location display function
+            location = get_complete_location_display(location_code, location)
             
             # Extract GL Amount (Column H)
             for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
@@ -686,8 +908,9 @@ def process_excel_import(file):
                 
                 table.add_row(**kwargs)
                 
-                code_display = f"[{location_code}]" if location_code else ""
-                print(f"  ✓ {code_display} {location}: GL=${gl_amt:,.2f} PO=${po_amt:,.2f} Other=${other_amt:,.2f}")
+                # Print progress less frequently (every 10 rows) to speed up import
+                if import_stats[table_name] % 10 == 0:
+                  print(f"  ✓ Processed {import_stats[table_name]} {table_name} entries...")
               else:
                 # Any other future summary tables - simpler format
                 getattr(app_tables, table_name).add_row(
@@ -1192,102 +1415,3 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
-
-@anvil.server.callable
-def get_spending_chart_figure(table_name='summary_2025'):
-  import plotly.graph_objects as go
-
-  raw_data = get_spending_summary_by_table(table_name)
-
-  if not raw_data or (isinstance(raw_data[0], (list, tuple)) and raw_data[0][0] in ("No Data", "Error", "Invalid table")):
-    return {"data": [], "layout": {"title": "No data available"}}
-
-  locations = []
-  gls = []
-  pos = []
-  others = []
-
-  for row in raw_data:
-    if isinstance(row, (list, tuple)) and len(row) >= 4:
-      loc, gl, po, oth = row[:4]
-      locations.append(str(loc).strip())
-      gls.append(float(gl or 0))
-      pos.append(float(po or 0))
-      others.append(float(oth or 0))
-    else:
-      continue
-
-  if not locations:
-    return {"data": [], "layout": {"title": "No locations found"}}
-
-  row_totals = [g + p + o for g, p, o in zip(gls, pos, others)]
-  grand_total = sum(row_totals)
-
-  title_map = {
-    'summary_2025': '2025 Spending Breakdown',
-    'inventory_summary_total': 'Total Inventory',
-    'inventory_summary_office': 'Office Inventory',
-    'inventory_summary_internal': 'Internal Inventory',
-    'inventory_summary_center': 'Center Inventory'
-  }
-  title_prefix = title_map.get(table_name, table_name.replace('_', ' ').title())
-
-  fig = go.Figure()
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=gls,
-    name='GL Amt',
-    marker_color='#1976D2',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in gls],
-    textposition='auto',
-    hovertemplate='%{x}<br>GL Amt: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=pos,
-    name='PO Orders',
-    marker_color='#388E3C',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in pos],
-    textposition='auto',
-    hovertemplate='%{x}<br>PO Orders: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.add_trace(go.Bar(
-    x=locations,
-    y=others,
-    name='Other',
-    marker_color='#F57C00',
-    text=[f"${v:,.0f}" if v >= 500 else "" for v in others],
-    textposition='auto',
-    hovertemplate='%{x}<br>Other: $%{y:,.2f}<extra></extra>'
-  ))
-
-  fig.update_layout(
-    barmode='stack',
-    title={
-      'text': f"{title_prefix}<br><sup>Total: ${grand_total:,.2f}</sup>",
-      'x': 0.5,
-      'xanchor': 'center',
-      'font': {'size': 20}
-    },
-    xaxis_title='Location',
-    xaxis_tickangle=-45,
-    xaxis_tickfont_size=11,
-    yaxis_title='Amount ($)',
-    yaxis_tickformat='$,.0f',
-    legend_orientation='h',
-    legend_yanchor='bottom',
-    legend_y=1.02,
-    legend_xanchor='center',
-    legend_x=0.5,
-    hovermode='x unified',
-    plot_bgcolor='#f8f9fa',
-    paper_bgcolor='white',
-    margin=dict(t=110, b=80, l=70, r=30),
-    bargap=0.18,
-    height=600
-  )
-
-  return fig.to_dict()

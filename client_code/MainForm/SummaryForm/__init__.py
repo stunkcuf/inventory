@@ -33,42 +33,43 @@ class SummaryForm(SummaryFormTemplate):
       if hasattr(self, 'dd_summary_selector') and self.dd_summary_selector.selected_value:
         sel = self.dd_summary_selector.selected_value
         selected_table = sel[1] if isinstance(sel, tuple) else sel
-  
-        # Get the ready-to-render Plotly figure dict from the server
+
+      # Get the ready-to-render Plotly figure dict from the server
       fig_dict = anvil.server.call('get_spending_chart_figure', selected_table)
-  
+
       if not fig_dict or 'data' not in fig_dict or len(fig_dict.get('data', [])) == 0:
         self._show_no_data()
         return
-  
-        # Set the figure directly (Remove the self.plot_spending.figure = empty_fig line)
+
+      # Set the figure directly
       self.plot_spending.figure = fig_dict
       print(f"Chart rendered successfully for table: {selected_table}")
-  
+
     except Exception as e:
       print(f"Error in refresh_summary: {repr(e)}")
       self._show_error(f"Failed to load chart: {str(e)}")
-  
-    def _show_no_data(self):
-      empty_fig = {
-        "data": [],
-        "layout": {
-          "title": "No data available",
-          "annotations": [{
-            "text": "No spending breakdown found<br>Try refreshing or check your import",
-            "xref": "paper", "yref": "paper",
-            "x": 0.5, "y": 0.5,
-            "showarrow": False,
-            "font": {"size": 18, "color": "#666"}
-          }],
-          "xaxis": {"visible": False},
-          "yaxis": {"visible": False}
-        }
+
+  def _show_no_data(self):
+    """Show message when no data is available"""
+    empty_fig = {
+      "data": [],
+      "layout": {
+        "title": "No data available",
+        "annotations": [{
+          "text": "No spending breakdown found<br>Try refreshing or check your import",
+          "xref": "paper", "yref": "paper",
+          "x": 0.5, "y": 0.5,
+          "showarrow": False,
+          "font": {"size": 18, "color": "#666"}
+        }],
+        "xaxis": {"visible": False},
+        "yaxis": {"visible": False}
       }
-      # FIXED: Was using error_fig, now uses empty_fig
-      self.plot_spending.figure = empty_fig
-  
+    }
+    self.plot_spending.figure = empty_fig
+
   def _show_error(self, msg="Unknown error"):
+    """Show error message in chart"""
     error_fig = {
       "data": [],
       "layout": {
@@ -85,5 +86,6 @@ class SummaryForm(SummaryFormTemplate):
     self.plot_spending.figure = error_fig
 
   def btn_refresh_click(self, **event_args):
+    """Refresh button handler"""
     self.refresh_summary()
     Notification("Summary refreshed", style="success", timeout=2).show()
