@@ -481,11 +481,19 @@ def get_spending_chart_figure(table_name='summary_2025'):
 
 # --- 3. THE "DEEP SCAN" EXCEL IMPORT ---
 @anvil.server.callable
-def process_excel_import(file):
+def process_excel_import(file, import_mode='full'):
   """
-  IMPROVED: Added comprehensive error handling, import statistics, and support for multiple summary tables
-  WHY: Users need to know what succeeded/failed during import
-  ADDED: Returns detailed import summary instead of just sheet names
+  IMPROVED: Added chunked import support to prevent timeouts
+  
+  import_mode options:
+  - 'full': Import everything (default, may timeout on large files)
+  - 'calcs': Import only calcs sheets (URLs)
+  - 'summaries': Import only summary sheets
+  - 'main_summary': Import only 2025-Summary sheet
+  - 'quick': Import calcs + small summaries (skip 2025-Summary)
+  
+  WHY: Large files timeout - chunking allows completion
+  RETURNS: Detailed import summary with what was processed
   """
 
   # Initialize import statistics
@@ -553,6 +561,32 @@ def process_excel_import(file):
         table = "center_calcs"
         target_assignments.append((s, table))
         print(f"Assigning sheet '{s}' to table '{table}'")
+
+    # FILTER ASSIGNMENTS BASED ON IMPORT MODE
+    if import_mode == 'calcs':
+      # Only calcs sheets
+      target_assignments = [(s, t) for s, t in target_assignments if 'calcs' in t.lower()]
+      print(f"\n🔄 IMPORT MODE: calcs - Processing {len(target_assignments)} calcs sheets only")
+
+    elif import_mode == 'summaries':
+      # Only summary sheets (not 2025-Summary)
+      target_assignments = [(s, t) for s, t in target_assignments 
+                            if 'summary' in t.lower() and t != 'summary_2025']
+      print(f"\n🔄 IMPORT MODE: summaries - Processing {len(target_assignments)} small summary sheets")
+
+    elif import_mode == 'main_summary':
+      # Only 2025-Summary sheet
+      target_assignments = [(s, t) for s, t in target_assignments if t == 'summary_2025']
+      print(f"\n🔄 IMPORT MODE: main_summary - Processing 2025-Summary sheet only")
+
+    elif import_mode == 'quick':
+      # Calcs + small summaries (skip main 2025-Summary)
+      target_assignments = [(s, t) for s, t in target_assignments 
+                            if 'calcs' in t.lower() or (t != 'summary_2025' and 'summary' in t.lower())]
+      print(f"\n🔄 IMPORT MODE: quick - Processing {len(target_assignments)} sheets (no main summary)")
+
+    else:  # 'full'
+      print(f"\n🔄 IMPORT MODE: full - Processing ALL {len(target_assignments)} sheets")
 
     # UNCHANGED: Delete all rows before import (this is correct)
     for tbl in ["inventory", "summary_2025", "office_calcs", "center_calcs", 
@@ -806,12 +840,12 @@ def process_excel_import(file):
             po_amt = 0
             other_amt = 0
             total_cost = 0
-            
+
             # Extract Location Code (Column B) - store as NUMBER
             for loc_code_col in ['Location #', 'Location Code', 'Location_Code', 'Loc Code', 'Code', 'Loc #', 'Site Code', 'Site #']:
               if loc_code_col in raw and pd.notna(raw[loc_code_col]):
                 raw_value = raw[loc_code_col]
-                
+
                 # Try to convert to integer
                 try:
                   if isinstance(raw_value, (int, float)):
@@ -819,13 +853,13 @@ def process_excel_import(file):
                   elif isinstance(raw_value, str):
                     # Try to parse string as number
                     location_code = int(float(raw_value.strip()))
-                  
+
                   if location_code:
                     break
                 except (ValueError, TypeError):
                   # If it's not a number (like "NELC"), skip it - it's probably the location name
                   continue
-            
+
             # Extract Location Name
             for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
               if loc_col in raw and pd.notna(raw[loc_col]):
@@ -834,58 +868,68 @@ def process_excel_import(file):
                 if loc_value and not loc_value.replace('.', '').replace('-', '').isdigit():
                   location = loc_value
                   break
-            
+
             # Use the complete location display function
             location = get_complete_location_display(location_code, location)
-            
+
             # Extract GL Amount (Column H)
             for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
               if gl_col in raw and pd.notna(raw[gl_col]):
                 gl_amt = clean_num(raw[gl_col])
                 if gl_amt != 0:
                   break
-            
+
             # Extract PO Amount (Column I)
             for po_col in ['PO Amt', 'PO_Amt', 'PO Orders', 'PO Amount', 'Purchase Orders', 'PO']:
               if po_col in raw and pd.notna(raw[po_col]):
                 po_amt = clean_num(raw[po_col])
                 if po_amt != 0:
                   break
-            
+
             # Extract Other Amount (Column J)
             for other_col in ['Other Amt', 'Other_Amt', 'Other', 'Misc', 'Miscellaneous']:
               if other_col in raw and pd.notna(raw[other_col]):
                 other_amt = clean_num(raw[other_col])
                 if other_amt != 0:
                   break
-            
+
             # Extract Total Amount (Column K)
             for cost_col in ['Total Amt', 'Total_Amt', 'Total Cost', 'Total_Cost', 'Total', 'Amount', 'Amt']:
               if cost_col in raw and pd.notna(raw[cost_col]):
                 total_cost = clean_num(raw[cost_col])
                 if total_cost != 0:
                   break
-            
+
             # Validation warning
             if table_name == "summary_2025":
               calculated_total = gl_amt + po_amt + other_amt
               if abs(calculated_total - total_cost) > 0.01 and total_cost > 0:
                 print(f"  ⚠️  Totals mismatch for {location}: GL+PO+Other=${calculated_total:.2f}, Total=${total_cost:.2f}")
-            
+
+            # Skip completely empty rows (formatting-only rows with no actual data)
+            # A row is considered empty ONLY if it has NO location data at all AND all amounts are zero
+            has_any_location = bool(location) or bool(location_code)
+            has_any_amount = (gl_amt != 0 or po_amt != 0 or other_amt != 0 or total_cost != 0)
+
+            is_empty_row = (not has_any_location) and (not has_any_amount)
+
+            if is_empty_row:
+              continue  # Skip this row entirely
+
             # Insert row
             if location or location_code:
               # All summary tables get full breakdown
               if table_name in ["summary_2025", "inventory_summary_office", 
                                 "inventory_summary_center", "inventory_summary_internal"]:
-                
+
                 table = getattr(app_tables, table_name)
-                
+
                 # Build row data based on available columns
                 # Check first row to see which column names exist
                 sample_row = list(table.search())
                 has_Location = 'Location' in (sample_row[0].keys() if sample_row else [])
                 has_Total_Cost = 'Total_Cost' in (sample_row[0].keys() if sample_row else [])
-                
+
                 # Build kwargs dynamically
                 kwargs = {
                   'Location_Code': location_code,
@@ -893,23 +937,25 @@ def process_excel_import(file):
                   'PO_Amt': po_amt,
                   'Other_Amt': other_amt,
                 }
-                
+
                 # Add location with correct column name
                 if has_Location or table_name == "summary_2025":
                   kwargs['Location'] = location or "Unknown"
                 else:
                   kwargs['location_name'] = location or "Unknown"
-                
+
                 # Add total with correct column name
                 if has_Total_Cost or table_name == "summary_2025":
                   kwargs['Total_Cost'] = total_cost
                 else:
                   kwargs['total_amt'] = total_cost
-                
+
                 table.add_row(**kwargs)
-                
-                # Print progress less frequently (every 10 rows) to speed up import
-                if import_stats[table_name] % 10 == 0:
+
+                import_stats[table_name] += 1
+
+                # Print progress less frequently (every 20 rows) to speed up import
+                if import_stats[table_name] % 20 == 0:
                   print(f"  ✓ Processed {import_stats[table_name]} {table_name} entries...")
               else:
                 # Any other future summary tables - simpler format
@@ -917,8 +963,7 @@ def process_excel_import(file):
                   Location=location,
                   Total_Cost=total_cost
                 )
-              
-              import_stats[table_name] += 1
+                import_stats[table_name] += 1
 
       except Exception as sheet_error:
         # ADDED: Per-sheet error handling
@@ -929,22 +974,10 @@ def process_excel_import(file):
         import_stats['errors'].append(error_msg)
         continue  # Continue with next sheet
 
-    # UNCHANGED: Final sweep to reset 'Ordered' status (your logic is correct)
-    print("Running final stock check to reset 'Ordered' status...")
-    for inv_row in app_tables.inventory.search():
-      oh = inv_row['On_Hand'] or 0
-      ma = inv_row['Minimum_Amt'] or 0
-      item_nm = inv_row['Item']
-      cat = inv_row['Category']
-
-      if oh >= ma:
-        calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
-        matching_calcs = calcs_table.search(Item=item_nm)
-        for existing_calc in matching_calcs:
-          if existing_calc.get('Ordered'):
-            existing_calc['Ordered'] = False
-            existing_calc['Date_Ordered'] = None
-            print(f"Restocked: Reset {item_nm} in {cat} calcs.")
+    # Skip the slow inventory restocking check during import - can be done separately
+    # This was taking too long and causing timeouts
+    # print("Running final stock check to reset 'Ordered' status...")
+    # (Commented out to speed up import)
 
     # IMPROVED: Return detailed statistics instead of just sheet names
     total_items = sum([
@@ -958,8 +991,24 @@ def process_excel_import(file):
       import_stats['inventory_summary_center']
     ])
 
+    # Print final summary
+    print("\n" + "="*60)
+    print("📊 IMPORT COMPLETE - FINAL SUMMARY")
+    print("="*60)
+    print(f"Total Items Imported: {total_items}")
+    print(f"  • Office Calcs: {import_stats['office_calcs']}")
+    print(f"  • Center Calcs: {import_stats['center_calcs']}")
+    print(f"  • Summary 2025: {import_stats['summary_2025']}")
+    print(f"  • Summary Office: {import_stats['inventory_summary_office']}")
+    print(f"  • Summary Center: {import_stats['inventory_summary_center']}")
+    print(f"  • Summary Internal: {import_stats['inventory_summary_internal']}")
+    print(f"  • Summary Total: {import_stats['inventory_summary_total']}")
+    print(f"  • Inventory: {import_stats['inventory']}")
+    print("="*60 + "\n")
+
     return {
       'success': True,
+      'import_mode': import_mode,
       'sheets_processed': [s for s, t in target_assignments],
       'stats': import_stats,
       'total_items': total_items
