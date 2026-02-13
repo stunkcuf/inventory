@@ -15,18 +15,18 @@ import openpyxl
 # Master lookup table for location codes and names
 LOCATION_MAP = {
   10: "Main Office",
-  11: "NELC",
-  12: "NELC", 
+  11: "CCR&R",  # CCR&R/DECL/DELC
+  12: "PEHS",   # Pendleton EHS 
   14: "PELC",
   15: "Annex",
   16: "LaGrande",
-  21: "CWELC",
+  21: "NELC",  # NELC only
   22: "Umatilla",
   24: "Pine Tree",
-  25: "PEHS",
+  25: "CWELC",  # CWELC/CW
   26: "PEHS",
   31: "Victory Square",
-  32: "HCSR",
+  32: "HCDC",  # Hermiston CDC
   33: "HCSR Lil Pups",
   34: "FACE",
   41: "Milton-Freewater",
@@ -49,6 +49,7 @@ def normalize_location_name(name):
 
   # Handle common variations
   variations = {
+    # Name variations
     'Milton Freewater': 'Milton-Freewater',
     'Milton-Freewate': 'Milton-Freewater',
     'MiltonFreewater': 'Milton-Freewater',
@@ -65,6 +66,21 @@ def normalize_location_name(name):
     'Main Office WIC': 'Main Office',
     'MO WIC': 'Main Office',
     'MO HR': 'Main Office',
+    'MO': 'Main Office',
+    'MAIN': 'Main Office',
+    'WIC': 'Main Office',
+    'VS': 'Victory Square',
+    'CW': 'CWELC',
+    'HCDC': 'HCDC',
+    'Hermiston CDC': 'HCDC',
+    'HCSR': 'HCDC',  # Based on code 32 correction
+    'HCSR1': 'HCDC',
+    'Pendleton EHS': 'PEHS',
+    'DECL': 'CCR&R',
+    'DELC': 'CCR&R',
+    'NE$LC': 'NELC',  # Typo variation
+    'PEHS / PELC': 'PEHS',  # Combined entry
+    '12 & 14': 'PEHS',  # Combined location codes
   }
 
   return variations.get(name, name)
