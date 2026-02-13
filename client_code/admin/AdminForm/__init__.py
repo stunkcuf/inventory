@@ -11,22 +11,44 @@ class AdminForm(AdminFormTemplate):
     self.init_components(**properties)
 
   def file_loader_1_change(self, file, **event_args):
-    """Import Excel file with detailed feedback"""
+    """Import Excel file with chunked import options"""
     if file:
+      # Ask user which import mode they want
+      mode = alert(
+        content="Choose import strategy:",
+        title="Import Mode",
+        buttons=[
+          ("Quick (Calcs + Small Summaries)", 'quick'),
+          ("Main Summary Only (2025-Summary)", 'main_summary'),
+          ("Full Import (May Timeout)", 'full'),
+          ("Cancel", None)
+        ],
+        large=True
+      )
+
+      if not mode:
+        return  # User cancelled
+
       loading_notification = None
       try:
-        # Show loading notification that won't auto-close
+        # Show loading notification
+        mode_text = {
+          'quick': 'Quick import (calcs + small summaries)',
+          'main_summary': 'Main summary (2025-Summary only)',
+          'full': 'Full import (all sheets)'
+        }.get(mode, mode)
+
         loading_notification = Notification(
-          "📥 Importing Excel file... This may take 1-2 minutes for large files. Please wait...", 
+          f"📥 {mode_text}... Please wait...", 
           style="info", 
           timeout=None
         )
         loading_notification.show()
 
-        # Call server - Anvil handles timeout automatically
-        result = anvil.server.call('process_excel_import', file)
+        # Call server with selected mode
+        result = anvil.server.call('process_excel_import', file, mode)
 
-        # Hide loading notification BEFORE showing results
+        # Hide loading notification
         if loading_notification:
           loading_notification.hide()
           loading_notification = None
@@ -34,46 +56,52 @@ class AdminForm(AdminFormTemplate):
         # Show results
         if result.get('success'):
           stats = result['stats']
-          msg = f"✅ Import Successful!\n\n"
+          mode_used = result.get('import_mode', 'unknown')
+
+          msg = f"✅ Import Complete ({mode_used} mode)!\n\n"
           msg += f"📊 Imported {result['total_items']} total items:\n\n"
-          msg += f"  • Inventory: {stats['inventory']}\n"
-          msg += f"  • Office Calcs: {stats['office_calcs']}\n"
-          msg += f"  • Center Calcs: {stats['center_calcs']}\n"
-          msg += f"  • Summary 2025: {stats['summary_2025']}\n"
-          msg += f"  • Summary Office: {stats['inventory_summary_office']}\n"
-          msg += f"  • Summary Center: {stats['inventory_summary_center']}\n"
-          msg += f"  • Summary Internal: {stats['inventory_summary_internal']}\n"
+
+          if stats['office_calcs'] > 0:
+            msg += f"  • Office Calcs: {stats['office_calcs']}\n"
+          if stats['center_calcs'] > 0:
+            msg += f"  • Center Calcs: {stats['center_calcs']}\n"
+          if stats['summary_2025'] > 0:
+            msg += f"  • Summary 2025: {stats['summary_2025']}\n"
+          if stats['inventory_summary_office'] > 0:
+            msg += f"  • Summary Office: {stats['inventory_summary_office']}\n"
+          if stats['inventory_summary_center'] > 0:
+            msg += f"  • Summary Center: {stats['inventory_summary_center']}\n"
+          if stats['inventory_summary_internal'] > 0:
+            msg += f"  • Summary Internal: {stats['inventory_summary_internal']}\n"
 
           if stats['warnings']:
-            msg += f"\n⚠️ {len(stats['warnings'])} warnings (check console)"
-            for warning in stats['warnings'][:5]:
-              print(f"WARNING: {warning}")
-
+            msg += f"\n⚠️ {len(stats['warnings'])} warnings"
           if stats['errors']:
-            msg += f"\n❌ {len(stats['errors'])} errors occurred"
-            for error in stats['errors']:
-              print(f"ERROR: {error}")
+            msg += f"\n❌ {len(stats['errors'])} errors"
+
+          # Suggest next steps if not full import
+          if mode_used == 'quick':
+            msg += "\n\n💡 Next: Run 'Main Summary Only' to import 2025-Summary sheet"
+          elif mode_used == 'main_summary':
+            msg += "\n\n✅ Import complete! If you need calcs/other summaries, run 'Quick' import"
 
           alert(msg, title="Import Complete", large=True)
 
         else:
-          error_msg = result.get('error', 'Unknown error')
-          alert(f"❌ Import failed: {error_msg}", title="Import Failed")
+          alert(f"❌ Import failed: {result.get('error', 'Unknown error')}", title="Import Failed")
 
       except anvil.server.TimeoutError:
-        # Handle timeout specifically
         if loading_notification:
           loading_notification.hide()
         alert(
           "⏱️ Import timed out.\n\n"
-          "The data may still be importing in the background.\n"
-          "Please wait 30 seconds, then refresh the page to check if data was imported.",
+          "Try using 'Quick' mode first, then 'Main Summary Only' mode.\n"
+          "This splits the import into two faster passes.",
           title="Timeout",
           large=True
         )
 
       except Exception as e:
-        # Handle any other errors
         if loading_notification:
           loading_notification.hide()
         print(f"❌ Error in file_loader_1_change: {e}")
