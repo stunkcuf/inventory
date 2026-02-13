@@ -15,18 +15,18 @@ import openpyxl
 # Master lookup table for location codes and names
 LOCATION_MAP = {
   10: "Main Office",
-  11: "NELC",
-  12: "NELC", 
+  11: "CCR&R",  # CCR&R/DECL/DELC
+  12: "PEHS",   # Pendleton EHS 
   14: "PELC",
   15: "Annex",
   16: "LaGrande",
-  21: "CWELC",
+  21: "NELC",  # NELC only
   22: "Umatilla",
   24: "Pine Tree",
-  25: "PEHS",
+  25: "CWELC",  # CWELC/CW
   26: "PEHS",
   31: "Victory Square",
-  32: "HCSR",
+  32: "HCDC",  # Hermiston CDC
   33: "HCSR Lil Pups",
   34: "FACE",
   41: "Milton-Freewater",
@@ -49,6 +49,7 @@ def normalize_location_name(name):
 
   # Handle common variations
   variations = {
+    # Name variations
     'Milton Freewater': 'Milton-Freewater',
     'Milton-Freewate': 'Milton-Freewater',
     'MiltonFreewater': 'Milton-Freewater',
@@ -65,8 +66,23 @@ def normalize_location_name(name):
     'Main Office WIC': 'Main Office',
     'MO WIC': 'Main Office',
     'MO HR': 'Main Office',
+    'MO': 'Main Office',
+    'MAIN': 'Main Office',
+    'WIC': 'Main Office',
+    'VS': 'Victory Square',
+    'CW': 'CWELC',
+    'HCDC': 'HCDC',
+    'Hermiston CDC': 'HCDC',
+    'HCSR': 'HCDC',  # Based on code 32 correction
+    'HCSR1': 'HCDC',
+    'Pendleton EHS': 'PEHS',
+    'DECL': 'CCR&R',
+    'DELC': 'CCR&R',
+    'NE$LC': 'NELC',  # Typo variation
+    'PEHS / PELC': 'PEHS',  # Combined entry
+    '12 & 14': 'PEHS',  # Combined location codes
   }
-
+  
   return variations.get(name, name)
 
 def get_complete_location_display(location_code, location_name):
@@ -77,24 +93,24 @@ def get_complete_location_display(location_code, location_name):
   # Normalize the name if provided
   if location_name:
     location_name = normalize_location_name(location_name)
-
+  
   # Try to get complete info from mapping
   if location_code and location_code in LOCATION_MAP:
     canonical_name = LOCATION_MAP[location_code]
     return f"[{location_code}] {canonical_name}"
-
+  
   # If we have both, use them
   if location_code and location_name:
     return f"[{location_code}] {location_name}"
-
+  
   # If only code, use it
   if location_code:
     return f"[{location_code}] Location {location_code}"
-
+  
   # If only name, return as-is (no code available)
   if location_name:
     return location_name
-
+  
   return "Unknown"
 
 
@@ -357,56 +373,56 @@ def get_spending_chart_figure(table_name='summary_2025'):
   Returns a Plotly figure dict ready for client rendering
   """
   print(f"=== Generating chart for {table_name} ===")
-
+  
   # Get the data
   data = get_spending_summary_by_table(table_name)
-
+  
   if not data or len(data) == 0:
     print("No data found")
     return None
-
+  
   # Aggregate by location and filter out Unknown/$0 entries
   location_totals = {}
-
+  
   for item in data:
     location, gl, po, other = item
-
+    
     # Skip if location is "Unknown" and all amounts are 0
     if location == "Unknown" and gl == 0 and po == 0 and other == 0:
       continue
-
+    
     # Skip if all amounts are 0
     if gl == 0 and po == 0 and other == 0:
       continue
-
+    
     # Aggregate by location
     if location not in location_totals:
       location_totals[location] = {'gl': 0, 'po': 0, 'other': 0}
-
+    
     location_totals[location]['gl'] += gl
     location_totals[location]['po'] += po
     location_totals[location]['other'] += other
-
+  
   if len(location_totals) == 0:
     print("No spending found after filtering")
     return None
-
+  
   # Sort by total spending (descending)
   sorted_locations = sorted(
     location_totals.items(), 
     key=lambda x: x[1]['gl'] + x[1]['po'] + x[1]['other'],
     reverse=True
   )
-
+  
   # Separate into lists
   locations = [loc for loc, _ in sorted_locations]
   gl_amounts = [totals['gl'] for _, totals in sorted_locations]
   po_amounts = [totals['po'] for _, totals in sorted_locations]
   other_amounts = [totals['other'] for _, totals in sorted_locations]
-
+  
   # Build traces - only include if there's ANY spending in that category
   traces = []
-
+  
   # Check if there's any GL spending across all locations
   if sum(gl_amounts) > 0:
     traces.append({
@@ -417,7 +433,7 @@ def get_spending_chart_figure(table_name='summary_2025'):
       'marker': {'color': '#4A90E2'},  # Blue
       'hovertemplate': '<b>%{x}</b><br>GL: $%{y:,.2f}<extra></extra>'
     })
-
+  
   # Check if there's any PO spending
   if sum(po_amounts) > 0:
     traces.append({
@@ -428,7 +444,7 @@ def get_spending_chart_figure(table_name='summary_2025'):
       'marker': {'color': '#50C878'},  # Green
       'hovertemplate': '<b>%{x}</b><br>PO: $%{y:,.2f}<extra></extra>'
     })
-
+  
   # Check if there's any Other spending
   if sum(other_amounts) > 0:
     traces.append({
@@ -439,12 +455,12 @@ def get_spending_chart_figure(table_name='summary_2025'):
       'marker': {'color': '#FF9500'},  # Orange
       'hovertemplate': '<b>%{x}</b><br>Other: $%{y:,.2f}<extra></extra>'
     })
-
+  
   # If no traces at all, return None
   if len(traces) == 0:
     print("No spending found in any category")
     return None
-
+  
   # Build the figure
   figure = {
     'data': traces,
@@ -475,7 +491,7 @@ def get_spending_chart_figure(table_name='summary_2025'):
       'margin': {'b': 120, 't': 60, 'l': 60, 'r': 20}
     }
   }
-
+  
   print(f"Generated figure with {len(traces)} traces for {len(locations)} locations (filtered from {len(data)} raw entries)")
   return figure
 
@@ -567,24 +583,24 @@ def process_excel_import(file, import_mode='full'):
       # Only calcs sheets
       target_assignments = [(s, t) for s, t in target_assignments if 'calcs' in t.lower()]
       print(f"\n🔄 IMPORT MODE: calcs - Processing {len(target_assignments)} calcs sheets only")
-
+      
     elif import_mode == 'summaries':
       # Only summary sheets (not 2025-Summary)
       target_assignments = [(s, t) for s, t in target_assignments 
-                            if 'summary' in t.lower() and t != 'summary_2025']
+                           if 'summary' in t.lower() and t != 'summary_2025']
       print(f"\n🔄 IMPORT MODE: summaries - Processing {len(target_assignments)} small summary sheets")
-
+      
     elif import_mode == 'main_summary':
       # Only 2025-Summary sheet
       target_assignments = [(s, t) for s, t in target_assignments if t == 'summary_2025']
       print(f"\n🔄 IMPORT MODE: main_summary - Processing 2025-Summary sheet only")
-
+      
     elif import_mode == 'quick':
       # Calcs + small summaries (skip main 2025-Summary)
       target_assignments = [(s, t) for s, t in target_assignments 
-                            if 'calcs' in t.lower() or (t != 'summary_2025' and 'summary' in t.lower())]
+                           if 'calcs' in t.lower() or (t != 'summary_2025' and 'summary' in t.lower())]
       print(f"\n🔄 IMPORT MODE: quick - Processing {len(target_assignments)} sheets (no main summary)")
-
+      
     else:  # 'full'
       print(f"\n🔄 IMPORT MODE: full - Processing ALL {len(target_assignments)} sheets")
 
@@ -840,12 +856,12 @@ def process_excel_import(file, import_mode='full'):
             po_amt = 0
             other_amt = 0
             total_cost = 0
-
+            
             # Extract Location Code (Column B) - store as NUMBER
             for loc_code_col in ['Location #', 'Location Code', 'Location_Code', 'Loc Code', 'Code', 'Loc #', 'Site Code', 'Site #']:
               if loc_code_col in raw and pd.notna(raw[loc_code_col]):
                 raw_value = raw[loc_code_col]
-
+                
                 # Try to convert to integer
                 try:
                   if isinstance(raw_value, (int, float)):
@@ -853,13 +869,13 @@ def process_excel_import(file, import_mode='full'):
                   elif isinstance(raw_value, str):
                     # Try to parse string as number
                     location_code = int(float(raw_value.strip()))
-
+                  
                   if location_code:
                     break
                 except (ValueError, TypeError):
                   # If it's not a number (like "NELC"), skip it - it's probably the location name
                   continue
-
+            
             # Extract Location Name
             for loc_col in ['Location Name', 'Location', 'Center', 'Site', 'Facility']:
               if loc_col in raw and pd.notna(raw[loc_col]):
@@ -868,68 +884,68 @@ def process_excel_import(file, import_mode='full'):
                 if loc_value and not loc_value.replace('.', '').replace('-', '').isdigit():
                   location = loc_value
                   break
-
+            
             # Use the complete location display function
             location = get_complete_location_display(location_code, location)
-
+            
             # Extract GL Amount (Column H)
             for gl_col in ['GL Amt', 'GL_Amt', 'GL Amount', 'General Ledger', 'GL', 'G/L']:
               if gl_col in raw and pd.notna(raw[gl_col]):
                 gl_amt = clean_num(raw[gl_col])
                 if gl_amt != 0:
                   break
-
+            
             # Extract PO Amount (Column I)
             for po_col in ['PO Amt', 'PO_Amt', 'PO Orders', 'PO Amount', 'Purchase Orders', 'PO']:
               if po_col in raw and pd.notna(raw[po_col]):
                 po_amt = clean_num(raw[po_col])
                 if po_amt != 0:
                   break
-
+            
             # Extract Other Amount (Column J)
             for other_col in ['Other Amt', 'Other_Amt', 'Other', 'Misc', 'Miscellaneous']:
               if other_col in raw and pd.notna(raw[other_col]):
                 other_amt = clean_num(raw[other_col])
                 if other_amt != 0:
                   break
-
+            
             # Extract Total Amount (Column K)
             for cost_col in ['Total Amt', 'Total_Amt', 'Total Cost', 'Total_Cost', 'Total', 'Amount', 'Amt']:
               if cost_col in raw and pd.notna(raw[cost_col]):
                 total_cost = clean_num(raw[cost_col])
                 if total_cost != 0:
                   break
-
+            
             # Validation warning
             if table_name == "summary_2025":
               calculated_total = gl_amt + po_amt + other_amt
               if abs(calculated_total - total_cost) > 0.01 and total_cost > 0:
                 print(f"  ⚠️  Totals mismatch for {location}: GL+PO+Other=${calculated_total:.2f}, Total=${total_cost:.2f}")
-
+            
             # Skip completely empty rows (formatting-only rows with no actual data)
             # A row is considered empty ONLY if it has NO location data at all AND all amounts are zero
             has_any_location = bool(location) or bool(location_code)
             has_any_amount = (gl_amt != 0 or po_amt != 0 or other_amt != 0 or total_cost != 0)
-
+            
             is_empty_row = (not has_any_location) and (not has_any_amount)
-
+            
             if is_empty_row:
               continue  # Skip this row entirely
-
+            
             # Insert row
             if location or location_code:
               # All summary tables get full breakdown
               if table_name in ["summary_2025", "inventory_summary_office", 
                                 "inventory_summary_center", "inventory_summary_internal"]:
-
+                
                 table = getattr(app_tables, table_name)
-
+                
                 # Build row data based on available columns
                 # Check first row to see which column names exist
                 sample_row = list(table.search())
                 has_Location = 'Location' in (sample_row[0].keys() if sample_row else [])
                 has_Total_Cost = 'Total_Cost' in (sample_row[0].keys() if sample_row else [])
-
+                
                 # Build kwargs dynamically
                 kwargs = {
                   'Location_Code': location_code,
@@ -937,23 +953,23 @@ def process_excel_import(file, import_mode='full'):
                   'PO_Amt': po_amt,
                   'Other_Amt': other_amt,
                 }
-
+                
                 # Add location with correct column name
                 if has_Location or table_name == "summary_2025":
                   kwargs['Location'] = location or "Unknown"
                 else:
                   kwargs['location_name'] = location or "Unknown"
-
+                
                 # Add total with correct column name
                 if has_Total_Cost or table_name == "summary_2025":
                   kwargs['Total_Cost'] = total_cost
                 else:
                   kwargs['total_amt'] = total_cost
-
+                
                 table.add_row(**kwargs)
-
+                
                 import_stats[table_name] += 1
-
+                
                 # Print progress less frequently (every 20 rows) to speed up import
                 if import_stats[table_name] % 20 == 0:
                   print(f"  ✓ Processed {import_stats[table_name]} {table_name} entries...")
@@ -990,7 +1006,7 @@ def process_excel_import(file, import_mode='full'):
       import_stats['inventory_summary_internal'],
       import_stats['inventory_summary_center']
     ])
-
+    
     # Print final summary
     print("\n" + "="*60)
     print("📊 IMPORT COMPLETE - FINAL SUMMARY")
