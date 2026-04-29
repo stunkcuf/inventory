@@ -15,8 +15,8 @@ unique_ids:
     MainForm.ShoppingListForm.RowTemplate3: '1768595196766152082827012.2552'
     MainForm.SummaryForm: '1768513755212634650823003.8097'
     admin.AdminForm: '1768513770005204835017321.72217'
-    admin.AuditLogForm: '1769493290786239457437980.8303'
-    admin.AuditLogForm.AuditLogRowTemplate: '1769493453668653133456613.3021'
+    admin.AuditViewer: '1769493290786239457437980.8303'
+    admin.AuditViewer.AuditLogRowTemplate: '1769493453668653133456613.3021'
   modules:
     MainForm.helpers: '1769631271788275185432152.82355'
     admin: '1769628386070796111216080.2827'

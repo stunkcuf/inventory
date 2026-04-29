@@ -3,7 +3,7 @@ from anvil import *
 import anvil.users
 import anvil.server
 from .InventoryForm import InventoryForm
-from ..admin.AdminForm import AdminForm  # FIXED - admin is separate package
+from ..admin.AdminForm import AdminForm
 from .SummaryForm import SummaryForm
 from .OrderHistoryForm import OrderHistoryForm
 from .ShoppingListForm import ShoppingListForm
@@ -15,7 +15,6 @@ class MainForm(MainFormTemplate):
 
     # Require login
     self.user = anvil.users.login_with_form()
-
     if not self.user:
       alert("You must log in to access the inventory system")
       return

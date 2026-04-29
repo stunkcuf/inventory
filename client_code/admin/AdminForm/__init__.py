@@ -140,13 +140,19 @@ class AdminForm(AdminFormTemplate):
       Notification("Error navigating to order history", style="danger").show()
 
   def link_audit_logs_click(self, **event_args):
-    """Navigate to Audit Logs - Admin Only"""
+    """Navigate to Audit Logs"""
+    print("🔍 Audit logs link clicked!")
+
     try:
-      from ..AuditLogForm import AuditLogForm
+      from ..AuditViewer import AuditViewer  # NEW NAME
+      print("✅ Import successful!")
+
       main_layout = get_open_form()
       main_layout.content_panel.clear()
-      main_layout.content_panel.add_component(AuditLogForm())
-      print("✅ Navigated to Audit Logs")
+      main_layout.content_panel.add_component(AuditViewer())
+
+      print("✅ Navigated to Audit Logs!")
+
     except Exception as e:
-      print(f"❌ Error in link_audit_logs_click: {e}")
-      Notification(f"Error loading audit logs: {str(e)}", style="danger", timeout=5).show()
+      print(f"❌ ERROR: {e}")
+      alert(f"Error: {str(e)}", title="Error")
