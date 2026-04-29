@@ -14,22 +14,33 @@ class InventoryForm(InventoryFormTemplate):
     self.refresh_inventory()
 
   def load_subcategories(self):
-    category = self.drop_down_filter.selected_value or "All"
-    subcats = anvil.server.call('get_subcategories', category)
-    if hasattr(self, 'drop_down_subcategory'):
-      self.drop_down_subcategory.items = [("All Subcategories", "All")] + [(s, s) for s in subcats]
-      self.drop_down_subcategory.selected_value = "All"
+    try:
+      category = self.drop_down_filter.selected_value or "All"
+      subcats = anvil.server.call('get_subcategories', category)
+      if hasattr(self, 'drop_down_subcategory'):
+        self.drop_down_subcategory.items = [("All Subcategories", "All")] + [(s, s) for s in subcats]
+        self.drop_down_subcategory.selected_value = "All"
+    except Exception as e:
+      print(f"Error loading subcategories: {e}")
+      if hasattr(self, 'drop_down_subcategory'):
+        self.drop_down_subcategory.items = [("All Subcategories", "All")]
 
   def refresh_inventory(self, **event_args):
-    # Wipe the panel to fix the 'load issue' duplicates
-    self.repeating_panel_1.items = [] 
+    try:
+      # Wipe the panel to fix the 'load issue' duplicates
+      self.repeating_panel_1.items = [] 
 
-    cat = self.drop_down_filter.selected_value
-    search = self.tb_search.text
-    subcat = self.drop_down_subcategory.selected_value if hasattr(self, 'drop_down_subcategory') else None
+      cat = self.drop_down_filter.selected_value
+      search = self.tb_search.text
+      subcat = self.drop_down_subcategory.selected_value if hasattr(self, 'drop_down_subcategory') else None
 
-    # This sends the search to the server
-    self.repeating_panel_1.items = anvil.server.call('get_inventory_fast', cat, search, subcat)
+      # Load with 100 item limit (prevents crash with 1000+ items)
+      # When user searches, it will filter and show more specific results
+      self.repeating_panel_1.items = anvil.server.call('get_inventory_fast', cat, search, subcat, limit=100)
+
+    except Exception as e:
+      print(f"Error loading inventory: {e}")
+      Notification(f"Error loading inventory: {str(e)}", style="danger", timeout=5).show()
 
   def tb_search_change(self, **event_args):
     query = self.tb_search.text

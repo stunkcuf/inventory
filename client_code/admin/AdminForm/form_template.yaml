@@ -9,7 +9,7 @@ components:
   name: link_order_history
   properties: {text: Order History}
   type: Link
-- event_bindings: {}
+- event_bindings: {click: link_audit_logs_click}
   layout_properties: {grid_position: 'ATBBFY,LETLVE'}
   name: link_audit_logs
   properties: {icon: 'fa:clipboard', text: Audit Logs}

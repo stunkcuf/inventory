@@ -4,439 +4,610 @@ db_schema:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: timestamp
       type: datetime
     - admin_ui: {width: 200}
+      client_hidden: null
       name: user_email
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: action
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: table_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: old_value
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: new_value
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: details
       type: string
+    indexes: []
     server: full
     title: audit_logs
   center_calcs:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Price
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: On_Hand
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Category
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Item_Link
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Notes
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Ordered
       type: bool
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Date_Ordered
       type: date
+    indexes: []
     server: full
     title: center_calcs
   center_supplies:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: on_hand
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: minimum_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: to_order
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: notes
       type: string
+    indexes: []
     server: full
     title: center_supplies
   files:
     client: full
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: path
       type: string
     - admin_ui: {width: 360}
+      client_hidden: null
       name: file
       type: media
     - admin_ui: {width: 200}
+      client_hidden: null
       name: file_version
       type: string
+    indexes: []
     server: full
     title: Files
   inventory:
     client: full
     columns:
     - admin_ui: {width: 123}
+      client_hidden: null
       name: Item
       type: string
     - admin_ui: {width: 117}
+      client_hidden: null
       name: On_Hand
       type: number
     - admin_ui: {width: 125}
+      client_hidden: null
       name: Minimum_Amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: To_Order
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Notes
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Category
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Subcategory
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: search_tokens
       type: string
+    indexes: []
     server: full
     title: inventory
   inventory_summary_center:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_requested
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: location_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: employee
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: total_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_filled
       type: date
-    - admin_ui: {order: 4, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Location_Code
       type: number
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: GL_Amt
       type: number
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: PO_Amt
       type: number
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Other_Amt
       type: number
+    indexes: []
     server: full
     title: inventory_summary_center
   inventory_summary_internal:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_requested
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: location_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: employee
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: total_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_filled
       type: date
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Location_Code
       type: number
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: GL_Amt
       type: number
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: PO_Amt
       type: number
-    - admin_ui: {order: 8, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Other_Amt
       type: number
+    indexes: []
     server: full
     title: inventory_summary_internal
   inventory_summary_office:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_requested
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: location_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: employee
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: total_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_filled
       type: date
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Location_Code
       type: number
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: GL_Amt
       type: number
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: PO_Amt
       type: number
-    - admin_ui: {order: 8, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Other_Amt
       type: number
+    indexes: []
     server: full
     title: inventory_summary_office
   inventory_summary_total:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_requested
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: location_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: employee
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: total_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date_filled
       type: date
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Location_Code
       type: number
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: GL_Amt
       type: number
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: PO_Amt
       type: number
-    - admin_ui: {order: 8, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Other_Amt
       type: number
+    indexes: []
     server: full
     title: inventory_summary_total
   machform_orders:
     client: full
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: items_json
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: fulfillment_status
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: fulfilled_by
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: fulfilled_date
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: notes
       type: string
+    indexes: []
     server: full
     title: machform_orders
   master_order_log:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: amount_each
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: total
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: employee
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: location
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: date
       type: date
+    indexes: []
     server: full
     title: master_order_log
   office_calcs:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Price
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: On_Hand
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Category
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Item_Link
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Notes
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Ordered
       type: bool
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Date_Ordered
       type: date
+    indexes: []
     server: full
     title: office_calcs
   office_supplies:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: on_hand
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: minimum_amt
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: to_order
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: notes
       type: string
+    indexes: []
     server: full
     title: office_supplies
   order_items_table:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: order_id
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item_name
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: quantity_requested
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: quantity_filled
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: status
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: notes
       type: string
+    indexes: []
     server: full
     title: order_items Table
+  stock_transactions:
+    client: full
+    columns:
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: item
+      target: inventory
+      type: link_single
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: change
+      type: number
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: transaction_type
+      type: string
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: po_number
+      type: string
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: req_number
+      type: string
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: user
+      target: users
+      type: link_single
+    - admin_ui: {width: 200}
+      client_hidden: false
+      name: timestamp
+      type: datetime
+    indexes: []
+    server: full
+    title: stock_transactions
   summary_2025:
     client: full
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Location
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Total_Cost
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Date
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: Description
       type: string
-    - admin_ui: {order: 4, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: GL_Amt
       type: number
-    - admin_ui: {order: 5, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: PO_Amt
       type: number
-    - admin_ui: {order: 6, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Other_Amt
       type: number
-    - admin_ui: {order: 7, width: 200}
+    - admin_ui: {width: 200}
+      client_hidden: null
       name: Location_Code
       type: number
+    indexes: []
     server: full
     title: summary_2025
   users:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: email
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: enabled
       type: bool
     - admin_ui: {width: 200}
+      client_hidden: null
       name: last_login
       type: datetime
     - admin_ui: {width: 200}
+      client_hidden: null
       name: password_hash
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: n_password_failures
       type: number
     - admin_ui: {width: 200}
+      client_hidden: null
       name: confirmed_email
       type: bool
     - admin_ui: {width: 200}
+      client_hidden: null
       name: signed_up
       type: datetime
     - admin_ui: {width: 200}
+      client_hidden: null
       name: email_confirmation_key
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: role
       type: string
+    indexes: []
     server: full
     title: Users
   wm_stock_history:
     client: none
     columns:
     - admin_ui: {width: 200}
+      client_hidden: null
       name: item
       type: string
     - admin_ui: {width: 200}
+      client_hidden: null
       name: check_date
       type: date
     - admin_ui: {width: 200}
+      client_hidden: null
       name: amount
       type: number
+    indexes: []
     server: full
     title: wm_stock_history
 dependencies: []
