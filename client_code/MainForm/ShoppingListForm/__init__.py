@@ -5,6 +5,10 @@ import anvil.server
 import anvil.js
 from datetime import datetime
 
+
+def escape_print_text(value):
+  return str(value).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+
 class ShoppingListForm(ShoppingListFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
@@ -16,14 +20,15 @@ class ShoppingListForm(ShoppingListFormTemplate):
     """Refresh the shopping list from server"""
     print("Refreshing shopping list...")
     try:
-      anvil.server.call('sync_inventory_status')
       items = anvil.server.call('get_shopping_list')
       self.repeating_panel_1.items = items
       if hasattr(self, 'label_empty'):
         self.label_empty.visible = len(items) == 0
       self.update_summary()
+      return True
     except Exception as e:
-      print(f"Error refreshing list: {e}")
+      Notification(f"Could not load shopping list: {e}", style="danger").show()
+      return False
 
   def update_summary(self):
     """Update summary logic"""
@@ -77,8 +82,8 @@ class ShoppingListForm(ShoppingListFormTemplate):
       row_class = 'class="ordered"' if item.get('Ordered', False) else ''
       html += f"""
         <tr {row_class}>
-          <td><strong>{item.get('Item', '')}</strong></td>
-          <td>{item.get('Category', '')}</td>
+          <td><strong>{escape_print_text(item.get('Item', ''))}</strong></td>
+          <td>{escape_print_text(item.get('Category', ''))}</td>
           <td>{qty}</td>
           <td>${price:.2f}</td>
           <td>${price * qty:.2f}</td>
@@ -93,5 +98,5 @@ class ShoppingListForm(ShoppingListFormTemplate):
   def refresh_button_click(self, **event_args):
     """The Refresh Logic - Indented to fix the Warning"""
     print("Refresh button clicked!")
-    self.refresh_list()
-    Notification("Shopping list refreshed", style="info", timeout=2).show()
+    if self.refresh_list():
+      Notification("Shopping list refreshed", style="info", timeout=2).show()

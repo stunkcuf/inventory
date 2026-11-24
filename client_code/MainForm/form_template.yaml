@@ -3,7 +3,7 @@ components:
   - event_bindings: {}
     layout_properties: {}
     name: order_filling
-    properties: {text: Order Filling}
+    properties: {text: Orders}
     type: Link
   - event_bindings: {}
     layout_properties: {}

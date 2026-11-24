@@ -1,16 +1,25 @@
 components:
-- components:
-  - layout_properties: {grid_position: 'RZIBMX,XEPTFD'}
-    name: label_1
-    properties: {bold: true, font_size: 24, text: 📝 Order Fill Form (MachForms Data Entry)}
-    type: Label
-  - layout_properties: {grid_position: 'XPBWPC,EPPBIT', row_background: '#666'}
-    name: label_2
-    properties: {text: Form will be built based on your MachForms data structure}
-    type: Label
-  layout_properties: {grid_position: 'UMEQHW,EYTZEL'}
-  name: outlined_card_1
-  properties: {role: outlined-card}
-  type: ColumnPanel
+- layout_properties: {grid_position: 'ORDERH,TITLEH'}
+  name: title_label
+  properties: {bold: true, font_size: 24, text: Orders}
+  type: Label
+- event_bindings: {change: refresh_orders}
+  layout_properties: {grid_position: 'FILTER,STATUS'}
+  name: dd_filter_status
+  properties: {}
+  type: DropDown
+- event_bindings: {click: refresh_orders}
+  layout_properties: {grid_position: 'FILTER,RELOAD'}
+  name: refresh_button
+  properties: {text: Refresh}
+  type: Button
+- layout_properties: {grid_position: 'ORDERS,COUNTS'}
+  name: label_summary
+  properties: {}
+  type: Label
+- layout_properties: {grid_position: 'RESULT,ORDERS'}
+  name: order_list
+  properties: {}
+  type: LinearPanel
 container: {type: ColumnPanel}
 is_package: true
