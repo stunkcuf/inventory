@@ -10,7 +10,7 @@ def escape_print_text(value):
   return str(value).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 SHOPPING_COLUMNS = [
-  {'id': 'RTETBL', 'title': 'Status', 'data_key': 'ordered', 'width': 142, 'expand': False},
+  {'id': 'RTETBL', 'title': 'Status', 'data_key': 'ordered', 'width': 180, 'expand': False},
   {'id': 'VJQQOR', 'title': 'Item', 'data_key': 'item'},
   {'id': 'JKSDUP', 'title': 'Department', 'data_key': 'category', 'width': 114, 'expand': False},
   {'id': 'LBWNFU', 'title': 'Qty to buy', 'data_key': 'to_order', 'width': 96, 'expand': False},
@@ -23,11 +23,17 @@ class ShoppingListForm(ShoppingListFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
     self.items = []
+    self.status_filter.items = [('To buy', 'pending'), ('Ordered', 'ordered'), ('All', 'all')]
+    self.status_filter.selected_value = 'pending'
     self.refresh_list()
 
   def supplier_groups(self):
     groups = {}
+    status = self.status_filter.selected_value
     for item in self.items:
+      ordered = bool(item.get('Ordered'))
+      if (status == 'pending' and ordered) or (status == 'ordered' and not ordered):
+        continue
       groups.setdefault(item.get('Supplier') or NO_ORDERING_LINK, []).append(item)
     return sorted(groups.items(), key=lambda group: (group[0] == NO_ORDERING_LINK, group[0].lower()))
 
@@ -38,32 +44,64 @@ class ShoppingListForm(ShoppingListFormTemplate):
       Notification(f"Could not load shopping list: {e}", style="danger").show()
       return False
 
+    self.render_suppliers()
+    return True
+
+  def render_suppliers(self):
     self.supplier_sections.clear()
-    for supplier, items in self.supplier_groups():
-      self.supplier_sections.add_component(Label(
-        text=f"{supplier} · {len(items)}", role='shopping-supplier-heading'
-      ))
+    groups = self.supplier_groups()
+    for supplier, items in groups:
+      pending = [item for item in items if not item.get('Ordered')]
+      actions = FlowPanel(align='left', role='shopping-list-toolbar')
+      actions.add_component(Label(text=f"{supplier} · {len(items)} shown · "
+                                       f"${self.estimated_cost(pending):,.2f} to buy",
+                                  role='shopping-supplier-heading'))
+      if pending:
+        print_button = Button(text="Print to buy", icon="fa:print", role='workspace-button')
+        print_button.set_event_handler('click', self.print_supplier_handler(supplier))
+        actions.add_component(print_button)
+      self.supplier_sections.add_component(actions)
       grid = DataGrid(columns=SHOPPING_COLUMNS, role='inventory-table', rows_per_page=25)
       grid.add_component(RepeatingPanel(item_template=RowTemplate3, items=items))
       self.supplier_sections.add_component(grid)
 
-    if not self.items:
-      self.supplier_sections.add_component(Label(text="No items are below minimum stock."))
+    if not groups:
+      message = "No items are below minimum stock." if not self.items else "No items match this status."
+      self.supplier_sections.add_component(Label(text=message))
     self.update_summary()
-    return True
+
+  def status_filter_change(self, **event_args):
+    self.render_suppliers()
+
+  def order_status_changed(self, updated):
+    for item in self.items:
+      if (item['Item'], item['Category']) == (updated['Item'], updated['Category']):
+        item.update(Ordered=updated['Ordered'], PO_Number=updated.get('PO_Number'))
+    self.render_suppliers()
+
+  def estimated_cost(self, items):
+    return sum((item.get('Price') or 0) * max(0, item['Minimum_Amt'] - item['On_Hand'])
+               for item in items)
 
   def update_summary(self):
     ordered_count = sum(bool(item.get('Ordered')) for item in self.items)
-    pending_cost = sum(
-      (item.get('Price') or 0) * max(0, item['Minimum_Amt'] - item['On_Hand'])
-      for item in self.items if not item.get('Ordered')
-    )
+    pending_cost = self.estimated_cost(item for item in self.items if not item.get('Ordered'))
     self.label_summary.text = (
       f"{len(self.items)} items · {ordered_count} ordered · ${pending_cost:,.2f} estimated remaining"
     )
 
   def print_button_click(self, **event_args):
-    if not self.items:
+    self.print_groups(self.supplier_groups())
+
+  def print_supplier_handler(self, supplier):
+    def print_supplier(**event_args):
+      items = [item for item in self.items
+               if (item.get('Supplier') or NO_ORDERING_LINK) == supplier and not item.get('Ordered')]
+      self.print_groups([(supplier, items)] if items else [])
+    return print_supplier
+
+  def print_groups(self, groups):
+    if not groups:
       alert("No items to print.")
       return
 
@@ -90,10 +128,10 @@ class ShoppingListForm(ShoppingListFormTemplate):
       <button class="no-print" onclick="window.print()">Print</button>
     """
 
-    for supplier, items in self.supplier_groups():
+    for supplier, items in groups:
       html += f"""<h2>{escape_print_text(supplier)}</h2>
         <table><thead><tr><th>Status</th><th>Item</th><th>Department</th>
-        <th>Qty to buy</th><th>Unit price</th><th>Total</th></tr></thead><tbody>"""
+        <th>Qty to buy</th><th>Unit price</th><th>Total</th><th>PO number</th></tr></thead><tbody>"""
       for item in items:
         qty = max(0, item['Minimum_Amt'] - item['On_Hand'])
         price = item.get('Price') or 0
@@ -101,7 +139,8 @@ class ShoppingListForm(ShoppingListFormTemplate):
         html += f"""
           <tr><td>{status}</td><td>{escape_print_text(item['Item'])}</td>
           <td>{escape_print_text(item['Category'])}</td><td>{qty}</td>
-          <td>${price:.2f}</td><td>${price * qty:.2f}</td></tr>"""
+          <td>${price:.2f}</td><td>${price * qty:.2f}</td>
+          <td>{escape_print_text(item.get('PO_Number') or '')}</td></tr>"""
       html += "</tbody></table>"
 
     html += "</body></html>"

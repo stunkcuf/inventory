@@ -73,6 +73,10 @@ db_schema:
       client_hidden: null
       name: Date_Ordered
       type: date
+    - admin_ui: {width: 200}
+      client_hidden: null
+      name: PO_Number
+      type: string
     indexes: []
     server: full
     title: center_calcs
@@ -431,6 +435,10 @@ db_schema:
       client_hidden: null
       name: Date_Ordered
       type: date
+    - admin_ui: {width: 200}
+      client_hidden: null
+      name: PO_Number
+      type: string
     indexes: []
     server: full
     title: office_calcs

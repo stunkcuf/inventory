@@ -25,17 +25,35 @@ class RowTemplate3(RowTemplate3Template):
   def update_row_status(self):
     ordered = self.check_ordered.checked
     self.role = 'shopping-row-ordered' if ordered else 'shopping-row'
-    self.check_ordered.text = 'Ordered' if ordered else 'Mark ordered'
+    po_number = self.item.get('PO_Number')
+    self.check_ordered.text = (f"Ordered · PO {po_number}" if ordered and po_number
+                               else 'Ordered' if ordered else 'Mark ordered')
     self.check_ordered.tooltip = f"Order status for {self.item['Item']}"
 
   def check_ordered_change(self, **event_args):
     """This method is called when the checkbox is toggled"""
     previous_status = self.item['Ordered']
     new_status = self.check_ordered.checked
+    if new_status == previous_status:
+      return
+
     self.check_ordered.enabled = False
+    po_number = None
     try:
+      if new_status:
+        po_input = TextBox(placeholder="PO number")
+        confirmed = alert(po_input, title=f"Mark {self.item['Item']} ordered",
+                          buttons=[('Save', True), ('Cancel', False)])
+        if not confirmed:
+          self.check_ordered.checked = previous_status
+          return
+        po_number = (po_input.text or '').strip()
+        if not po_number or len(po_number) > 100:
+          self.check_ordered.checked = previous_status
+          Notification("Enter a PO number of 1 to 100 characters.", style="warning").show()
+          return
       result = anvil.server.call(
-        'check_ordered', self.item['Item'], self.item['Category'], new_status
+        'check_ordered', self.item['Item'], self.item['Category'], new_status, po_number
       )
     except Exception as e:
       self.check_ordered.checked = previous_status
@@ -50,8 +68,10 @@ class RowTemplate3(RowTemplate3Template):
       return
 
     self.item['Ordered'] = new_status
+    self.item['PO_Number'] = po_number
     self.update_row_status()
     from anvil import get_open_form
     for component in get_open_form().content_panel.get_components():
-      if hasattr(component, 'update_summary'):
-        component.update_summary()
+      if hasattr(component, 'order_status_changed'):
+        component.order_status_changed(self.item)
+        break

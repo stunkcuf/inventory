@@ -4,6 +4,10 @@ components:
   properties: {role: inventory-page-heading, text: Shopping List}
   type: Label
 - components:
+  - event_bindings: {change: status_filter_change}
+    name: status_filter
+    properties: {tooltip: Filter by order status}
+    type: DropDown
   - name: label_summary
     properties: {role: workspace-status}
     type: Label
