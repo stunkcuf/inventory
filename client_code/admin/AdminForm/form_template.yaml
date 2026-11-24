@@ -27,5 +27,10 @@ components:
   name: label_1
   properties: {text: 'Upload is easy mapping of excel files just for inventory-trker it will clear and reset to excel data. please use accordingly.  The other excel sheet that will work is the master inventory. it pulls data from specific sheets to tables to use in the app. '}
   type: Label
+- event_bindings: {click: machform_integration_click}
+  layout_properties: {grid_position: 'MACHFM,CONFIG'}
+  name: link_machform_integration
+  properties: {text: MachForm Integration}
+  type: Link
 container: {type: ColumnPanel}
 is_package: true

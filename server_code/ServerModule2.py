@@ -4,6 +4,9 @@ from anvil.tables import app_tables
 import anvil.server
 import anvil.tables.query as q
 import io
+import json
+from hmac import compare_digest
+from urllib.parse import parse_qs
 import re
 from collections import Counter
 from datetime import datetime
@@ -1609,3 +1612,86 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
+
+
+MACHFORM_WEBHOOK_PATH = '/machform-orders'
+MACHFORM_FORM_IDS = ('161659', '161453')
+
+
+def _machform_webhook_secret():
+  try:
+    import anvil.secrets
+    return anvil.secrets.get_secret('machform_webhook_secret')
+  except Exception:
+    # A missing Secrets service or unset secret leaves the receiver disabled.
+    return None
+
+
+@anvil.server.callable
+def get_machform_webhook_settings():
+  require_admin()
+  base_url = anvil.server.get_app_origin().rstrip('/') + '/_/api' + MACHFORM_WEBHOOK_PATH
+  return {
+    'urls': [(form_id, f"{base_url}/{form_id}") for form_id in MACHFORM_FORM_IDS],
+    'enabled': bool(_machform_webhook_secret()),
+  }
+
+
+@tables.in_transaction
+def _save_machform_submission(form_id, entry_id, payload):
+  inbox = app_tables.machform_inbox
+  if entry_id and inbox.get(form_id=form_id, entry_id=entry_id) is not None:
+    return False
+  inbox.add_row(
+    form_id=form_id,
+    entry_id=entry_id,
+    received_at=datetime.now(timezone.utc),
+    payload_json=json.dumps(payload, ensure_ascii=False),
+  )
+  return True
+
+
+@anvil.server.http_endpoint(MACHFORM_WEBHOOK_PATH + '/:form_id', methods=['POST'])
+def receive_machform_order(form_id):
+  request = anvil.server.request
+  respond = anvil.server.HttpResponse
+  if form_id not in MACHFORM_FORM_IDS:
+    return respond(404, 'Unknown MachForm form.')
+  secret = _machform_webhook_secret()
+  if not secret:
+    return respond(503, 'MachForm receiver is disabled.')
+
+  content_type = request.headers.get('Content-Type', '').split(';', 1)[0].strip().lower()
+  if content_type not in ('application/json', 'application/x-www-form-urlencoded'):
+    return respond(415, 'Send JSON or URL-encoded form data.')
+
+  try:
+    body = request.body.get_bytes()
+    if len(body) > 65536:
+      return respond(413, 'Order payload is too large.')
+    if content_type == 'application/json':
+      order = json.loads(body.decode('utf-8'))
+    else:
+      fields = parse_qs(body.decode('utf-8'), keep_blank_values=True, max_num_fields=500)
+      order = {name: values[0] if len(values) == 1 else values for name, values in fields.items()}
+  except (ValueError, UnicodeError):
+    return respond(400, 'Invalid order payload.')
+
+  if not isinstance(order, dict):
+    return respond(400, 'Expected an order object.')
+  credential = request.headers.get('X-MachForm-Token') or order.get('webhook_token')
+  if not isinstance(credential, str) or not compare_digest(
+      credential.encode('utf-8'), secret.encode('utf-8')):
+    return respond(401, 'Invalid webhook credential.')
+
+  order.pop('webhook_token', None)
+  if not order:
+    return respond(400, 'No submission fields received.')
+
+  entry_id = order.get('entry_id')
+  if isinstance(entry_id, (str, int)) and not isinstance(entry_id, bool):
+    entry_id = str(entry_id).strip() or None
+  else:
+    entry_id = None
+  created = _save_machform_submission(form_id, entry_id, order)
+  return respond(201 if created else 200, 'Submission saved.' if created else 'Submission already saved.')
