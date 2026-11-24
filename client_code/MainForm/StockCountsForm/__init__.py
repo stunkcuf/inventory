@@ -1,5 +1,5 @@
 from ._anvil_designer import StockCountsFormTemplate
-from anvil import Button, DropDown, FlowPanel, Label, LinearPanel, Notification, TextBox, alert, confirm
+from anvil import Button, DropDown, FlowPanel, Label, LinearPanel, Notification, TextBox, alert, confirm, get_open_form
 import anvil.server
 
 
@@ -141,6 +141,7 @@ class StockCountsForm(StockCountsFormTemplate):
       message = "Count matched and was saved." if status == 'Matched' else "Count saved for admin review."
       Notification(message, style='success').show()
       self.load_counts()
+      get_open_form().refresh_task_counts()
     return record_count
 
   def review_handler(self, row, apply):
@@ -159,4 +160,5 @@ class StockCountsForm(StockCountsFormTemplate):
         sender.enabled = True
       Notification("Stock adjusted." if apply else "Count dismissed.", style='success').show()
       self.load_counts()
+      get_open_form().refresh_task_counts()
     return review

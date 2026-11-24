@@ -179,3 +179,4 @@ class AdminForm(AdminFormTemplate):
       alert(f"Could not save the schedule: {error}")
       return
     Notification(f"Stock counts are due every {interval.selected_value} days.", style='success').show()
+    get_open_form().refresh_task_counts()
