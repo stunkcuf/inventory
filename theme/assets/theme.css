@@ -30,14 +30,122 @@ body {
   padding: 0 20px !important;
 }
 
-/* --- App Bar Styling --- */
-.app-bar {
-  min-height: 56px;
-  background-color: %color:Surface%;
-  z-index: 1000;
-  position: fixed;
-  top: 0; 
-  width: 100%;
+/* Inventory navigation and workspace */
+.inventory-shell {
+  min-height: 100vh;
+  background: #f4f7f9;
+  color: #172b3a;
+}
+
+.inventory-header {
+  background: #fff;
+  border-bottom: 1px solid #dce5eb;
+}
+
+.inventory-header-inner,
+.inventory-workspace {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(12px, 3vw, 36px);
+}
+
+.inventory-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0 8px;
+}
+
+.inventory-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.inventory-brand-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 8px;
+  background: #124b55;
+  color: #fff;
+}
+
+.inventory-navigation {
+  padding: 0 0 9px;
+}
+
+.inventory-navigation .flow-panel-gutter {
+  justify-content: flex-start !important;
+}
+
+.inventory-navigation a,
+.inventory-brand-row a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  color: #304653;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.inventory-navigation a:hover,
+.inventory-brand-row a:hover {
+  background: #edf3f6;
+  color: #173d47;
+  text-decoration: none;
+}
+
+.inventory-navigation .anvil-role-selected,
+.inventory-navigation .anvil-role-selected a {
+  background: #d9eeec;
+  border-radius: 8px;
+  color: #124b55;
+  font-weight: 700;
+}
+
+.inventory-navigation a:focus-visible,
+.inventory-brand-row a:focus-visible {
+  outline: 2px solid #197987;
+  outline-offset: 2px;
+}
+
+.inventory-workspace {
+  padding-top: 24px;
+  padding-bottom: 32px;
+}
+
+.anvil-role-inventory-page-heading {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 0 20px 12px;
+}
+
+.anvil-role-inventory-admin-card {
+  background: #fff;
+  border: 1px solid #dce5eb;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 152px;
+}
+
+@media (max-width: 600px) {
+  .inventory-brand-row { padding-top: 10px; }
+  .inventory-navigation a { padding-inline: 7px; }
+  .inventory-workspace { padding-top: 16px; }
+  .inventory-shell .anvil-container .anvil-panel-section-container {
+    padding-inline: 0 !important;
+  }
+  .anvil-role-inventory-page-heading { padding-inline: 0; }
 }
 
 /* --- Card & Row Styling --- */

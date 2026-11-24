@@ -1,36 +1,48 @@
 components:
-- event_bindings: {click: shopping_list_link_click}
-  layout_properties: {grid_position: 'ATBBFY,XXGLFF'}
-  name: ShoppingListForm
-  properties: {text: Shopping List}
-  type: Link
-- event_bindings: {click: link_order_history_click}
-  layout_properties: {grid_position: 'ATBBFY,BEYEOK'}
-  name: link_order_history
-  properties: {text: Order History}
-  type: Link
-- event_bindings: {click: link_audit_logs_click}
-  layout_properties: {grid_position: 'ATBBFY,LETLVE'}
-  name: link_audit_logs
-  properties: {icon: 'fa:clipboard', text: Audit Logs}
-  type: Link
-- event_bindings: {change: file_loader_1_change}
-  layout_properties: {grid_position: 'ATBBFY,JHZGIM'}
-  name: file_loader_1
-  properties: {}
-  type: FileLoader
-- layout_properties: {grid_position: 'FQLPTC,CRCXQM'}
-  name: label_2
-  properties: {text: "The shopping list shows items below minimum stock. Use its checkbox to update an item’s ordered status."}
-  type: Label
-- layout_properties: {grid_position: 'FQLPTC,UQWNHV'}
-  name: label_1
-  properties: {text: 'Upload is easy mapping of excel files just for inventory-trker it will clear and reset to excel data. please use accordingly.  The other excel sheet that will work is the master inventory. it pulls data from specific sheets to tables to use in the app. '}
-  type: Label
-- event_bindings: {click: machform_integration_click}
-  layout_properties: {grid_position: 'MACHFM,CONFIG'}
-  name: link_machform_integration
-  properties: {text: MachForm Integration}
-  type: Link
+- components:
+  - name: import_heading
+    properties: {bold: true, font_size: 18, text: Inventory import}
+    type: Label
+  - name: import_description
+    properties: {text: Upload an Excel workbook. Some import modes replace existing rows.}
+    type: Label
+  - event_bindings: {change: file_loader_1_change}
+    name: file_loader_1
+    properties: {icon: 'fa:upload', text: Choose workbook}
+    type: FileLoader
+  layout_properties: {grid_position: 'ADMINR,IMPORT'}
+  name: import_panel
+  properties: {role: inventory-admin-card}
+  type: LinearPanel
+- components:
+  - name: integrations_heading
+    properties: {bold: true, font_size: 18, text: Order intake}
+    type: Label
+  - name: integrations_description
+    properties: {text: Get the webhook URLs for incoming MachForm submissions.}
+    type: Label
+  - event_bindings: {click: machform_integration_click}
+    name: link_machform_integration
+    properties: {icon: 'fa:link', text: MachForm Integration}
+    type: Link
+  layout_properties: {grid_position: 'ADMINR,INTAKE'}
+  name: integrations_panel
+  properties: {role: inventory-admin-card}
+  type: LinearPanel
+- components:
+  - name: audit_heading
+    properties: {bold: true, font_size: 18, text: Activity}
+    type: Label
+  - name: audit_description
+    properties: {text: Review recorded changes to inventory and other tables.}
+    type: Label
+  - event_bindings: {click: link_audit_logs_click}
+    name: link_audit_logs
+    properties: {icon: 'fa:clipboard', text: Audit Logs}
+    type: Link
+  layout_properties: {grid_position: 'ADMINR,REVIEW'}
+  name: audit_panel
+  properties: {role: inventory-admin-card}
+  type: LinearPanel
 container: {type: ColumnPanel}
 is_package: true

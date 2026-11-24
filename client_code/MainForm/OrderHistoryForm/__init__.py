@@ -157,7 +157,4 @@ class OrderHistoryForm(OrderHistoryFormTemplate):
 
   def link_shopping_list_click(self, **event_args):
     """Navigate to shopping list"""
-    from ..ShoppingListForm import ShoppingListForm
-    main_layout = get_open_form()
-    main_layout.content_panel.clear()
-    main_layout.content_panel.add_component(ShoppingListForm())
+    get_open_form().link_shopping_list_click()

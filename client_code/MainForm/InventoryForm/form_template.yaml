@@ -2,28 +2,28 @@ components:
 - event_bindings: {pressed_enter: tb_search_pressed_enter}
   layout_properties: {grid_position: 'KYIKQS,VCDBXX'}
   name: tb_search
-  properties: {placeholder: Enter item name and press Enter}
+  properties: {placeholder: Search items and press Enter}
   type: TextBox
 - event_bindings: {change: drop_down_filter_change}
   layout_properties: {grid_position: 'KYIKQS,RXLNSK ZXLJRT,DLPCZZ'}
   name: drop_down_filter
   properties:
-    items: ['["All", "Office", "Center"]']
+    tooltip: Filter by inventory category
   type: DropDown
 - event_bindings: {change: drop_down_subcategory_change}
   layout_properties: {grid_position: 'KYIKQS,RXLNSK ZUELRH,DWJWAF'}
   name: drop_down_subcategory
-  properties: {}
+  properties: {tooltip: Filter by subcategory}
   type: DropDown
 - event_bindings: {click: button_add_click}
   layout_properties: {grid_position: 'KYIKQS,IQTZXJ PWJPNN,FTJIIV'}
   name: button_add
-  properties: {align: right, background: 'theme:Primary Container', text: Add Product}
+  properties: {align: right, background: 'theme:Primary Container', icon: 'fa:plus', text: Add product}
   type: Button
 - event_bindings: {click: button_update_stock_click}
   layout_properties: {grid_position: 'KYIKQS,IQTZXJ VMHXWT,BOSWKU'}
   name: button_update_stock
-  properties: {align: right, background: 'theme:Primary Container', text: update stock}
+  properties: {align: right, background: 'theme:Primary Container', icon: 'fa:exchange', text: Update stock}
   type: Button
 - components:
   - name: repeating_panel_1

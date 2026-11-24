@@ -282,6 +282,10 @@ color_scheme:
       name: Manarola Dark
 roles:
 - components: [Label]
+  name: inventory-page-heading
+- components: [LinearPanel]
+  name: inventory-admin-card
+- components: [Label]
   name: input-prompt
 - components: [Link]
   name: selected
