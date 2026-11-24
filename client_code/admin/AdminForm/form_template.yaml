@@ -44,6 +44,10 @@ components:
     name: link_audit_logs
     properties: {icon: 'fa:clipboard', text: Audit Logs}
     type: Link
+  - event_bindings: {click: stock_count_setup_click}
+    name: link_stock_count_setup
+    properties: {icon: 'fa:calendar', text: Stock Count Setup}
+    type: Link
   layout_properties: {grid_position: 'ADMINR,REVIEW'}
   name: audit_panel
   properties: {role: inventory-admin-card}

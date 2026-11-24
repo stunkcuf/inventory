@@ -9,7 +9,7 @@ from hmac import compare_digest
 from urllib.parse import parse_qs, urlsplit
 import re
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from itertools import islice
 
@@ -1303,9 +1303,143 @@ def whole_quantity(value):
   return int(value)
 
 
+DEFAULT_STOCK_COUNT_INTERVAL = 30
+STOCK_COUNT_INTERVAL_OPTIONS = (7, 14, 30, 60, 90)
+
+
+def stock_count_interval():
+  settings = app_tables.stock_count_settings.get(name='schedule')
+  return settings['interval_days'] if settings is not None else DEFAULT_STOCK_COUNT_INTERVAL
+
+
+@anvil.server.callable
+def get_stock_count_setup():
+  require_admin()
+  return {'interval_days': stock_count_interval(), 'options': list(STOCK_COUNT_INTERVAL_OPTIONS)}
+
+
+@anvil.server.callable
+@tables.in_transaction
+def save_stock_count_setup(interval_days):
+  require_admin()
+  if isinstance(interval_days, bool) or interval_days not in STOCK_COUNT_INTERVAL_OPTIONS:
+    raise ValueError("Choose a count interval from the list.")
+  settings = app_tables.stock_count_settings.get(name='schedule')
+  if settings is None:
+    app_tables.stock_count_settings.add_row(name='schedule', interval_days=interval_days)
+  else:
+    settings['interval_days'] = interval_days
+
+
+
+@anvil.server.callable
+def get_stock_counts():
+  user = anvil.users.get_user()
+  if user is None:
+    raise PermissionError("Sign in to view stock counts.")
+
+  interval_days = stock_count_interval()
+  cutoff = datetime.now().date() - timedelta(days=interval_days)
+  pending = {}
+  last_counted = {}
+  recent = []
+  recent_closed = 0
+  rows = app_tables.stock_counts.search(tables.order_by('counted_at', ascending=False))
+  for row in rows:
+    inventory_id = row['inventory_id']
+    status = row['status']
+    if status == 'Pending review':
+      pending.setdefault(inventory_id, row.get_id())
+    elif status in ('Matched', 'Adjusted'):
+      last_counted.setdefault(inventory_id, row['counted_at'].date())
+
+    needs_review = status == 'Pending review'
+    if needs_review or recent_closed < 25:
+      record = {
+        'id': row.get_id(), 'item': row['item_name'], 'category': row['category'],
+        'expected': row['expected'], 'counted': row['counted'], 'status': status,
+        'date': row['counted_at'].date().isoformat(), 'review': needs_review,
+      }
+      recent.append(record)
+      if not needs_review:
+        recent_closed += 1
+
+  items = []
+  for item in app_tables.inventory.search(tables.order_by('Item')):
+    inventory_id = item.get_id()
+    last = last_counted.get(inventory_id)
+    items.append({
+      'id': inventory_id, 'item': item['Item'], 'category': item['Category'],
+      'on_hand': item['On_Hand'] or 0, 'last_count': last.isoformat() if last else '',
+      'pending': inventory_id in pending, 'due': last is None or last <= cutoff,
+    })
+  return {'items': items, 'counts': recent, 'can_review': user.get('role') == 'admin',
+          'interval_days': interval_days}
+
+
+@anvil.server.callable
+@tables.in_transaction
+def submit_stock_count(inventory_id, expected, counted):
+  user = anvil.users.get_user()
+  if user is None:
+    raise PermissionError("Sign in to record a stock count.")
+  counted = 0 if counted == 0 and not isinstance(counted, bool) else whole_quantity(counted)
+  item = app_tables.inventory.get_by_id(inventory_id)
+  if item is None:
+    raise ValueError("This inventory item is unavailable.")
+  on_hand = item['On_Hand'] or 0
+  if expected != on_hand:
+    raise ValueError("On-hand stock changed. Refresh and count the item again.")
+
+  counts = app_tables.stock_counts
+  if counts.get(inventory_id=inventory_id, status='Pending review') is not None:
+    raise ValueError("This item already has a count awaiting review.")
+  status = 'Matched' if counted == on_hand else 'Pending review'
+  counts.add_row(
+    inventory_id=inventory_id, item_name=item['Item'], category=item['Category'],
+    expected=on_hand, counted=counted, counted_at=datetime.now(), counted_by=user, status=status,
+  )
+  return status
+
+
+@anvil.server.callable
+@tables.in_transaction
+def review_stock_count(count_id, apply_adjustment):
+  require_admin()
+  if not isinstance(apply_adjustment, bool):
+    raise ValueError("Choose whether to apply the adjustment.")
+  count = app_tables.stock_counts.get_by_id(count_id)
+  if count is None or count['status'] != 'Pending review':
+    raise ValueError("This count is no longer awaiting review.")
+
+  user = anvil.users.get_user()
+  reviewed_at = datetime.now()
+  if apply_adjustment:
+    item = app_tables.inventory.get_by_id(count['inventory_id'])
+    if (item is None or (item['On_Hand'] or 0) != count['expected']
+        or item['Item'] != count['item_name'] or item['Category'] != count['category']):
+      raise ValueError("Inventory changed after this count. Dismiss it and request a recount.")
+    counted = count['counted']
+    item.update(On_Hand=counted, To_Order=max(0, (item['Minimum_Amt'] or 0) - counted))
+    app_tables.stock_transactions.add_row(
+      item=item, change=counted - count['expected'], transaction_type='cycle_count_adjustment',
+      timestamp=reviewed_at, user=user,
+    )
+
+  count.update(status='Adjusted' if apply_adjustment else 'Dismissed',
+               reviewed_at=reviewed_at, reviewed_by=user)
+
+
+def require_receiving_user():
+  user = anvil.users.get_user()
+  if user is None or (user.get('role') or 'staff') not in ('admin', 'staff'):
+    raise PermissionError("Sign in as staff or admin to access Receiving.")
+  return user
+
+
 @anvil.server.callable
 def get_receiving_orders():
-  require_admin()
+  require_receiving_user()
   orders = {}
   for row in app_tables.purchase_order_lines.search(
       tables.order_by('ordered_at', ascending=False), canceled=False):
@@ -1319,7 +1453,7 @@ def get_receiving_orders():
 @anvil.server.callable
 @tables.in_transaction
 def record_po_receipt(line_id, quantity, delivery_reference):
-  require_admin()
+  user = require_receiving_user()
   quantity = whole_quantity(quantity)
   if not isinstance(delivery_reference, str) or not 1 <= len(delivery_reference.strip()) <= 100:
     raise ValueError("Enter a packing slip or delivery reference.")
@@ -1352,7 +1486,7 @@ def record_po_receipt(line_id, quantity, delivery_reference):
   line.update(inventory_item=item, received_quantity=line['received_quantity'] + quantity)
   app_tables.stock_transactions.add_row(
     item=item, change=quantity, transaction_type='received', po_number=line['po_number'],
-    user=anvil.users.get_user(), timestamp=datetime.now(),
+    user=user, timestamp=datetime.now(),
     purchase_order_line_id=line_id, delivery_reference=delivery_reference,
   )
   return True
