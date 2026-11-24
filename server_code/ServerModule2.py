@@ -8,7 +8,7 @@ import json
 from hmac import compare_digest
 from urllib.parse import parse_qs
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from itertools import islice
 
 
@@ -1561,7 +1561,7 @@ def update_order_fulfillment(order_id, new_status, notes):
 
 
 MACHFORM_WEBHOOK_PATH = '/machform-orders'
-MACHFORM_FORM_IDS = {'161659', '161453'}
+MACHFORM_FORM_IDS = ('161659', '161453')
 
 
 def _machform_webhook_secret():
@@ -1576,29 +1576,33 @@ def _machform_webhook_secret():
 @anvil.server.callable
 def get_machform_webhook_settings():
   require_admin()
+  base_url = anvil.server.get_app_origin().rstrip('/') + '/_/api' + MACHFORM_WEBHOOK_PATH
   return {
-    'url': anvil.server.get_app_origin().rstrip('/') + '/_/api' + MACHFORM_WEBHOOK_PATH,
+    'urls': [(form_id, f"{base_url}/{form_id}") for form_id in MACHFORM_FORM_IDS],
     'enabled': bool(_machform_webhook_secret()),
   }
 
 
 @tables.in_transaction
-def _save_webhook_order(submission_key, order):
-  table = app_tables.machform_orders
-  if table.get(machform_submission_key=submission_key) is not None:
+def _save_machform_submission(form_id, entry_id, payload):
+  inbox = app_tables.machform_inbox
+  if entry_id and inbox.get(form_id=form_id, entry_id=entry_id) is not None:
     return False
-  table.add_row(
-    machform_submission_key=submission_key,
-    items_json=json.dumps(order, ensure_ascii=False),
-    fulfillment_status='Pending',
+  inbox.add_row(
+    form_id=form_id,
+    entry_id=entry_id,
+    received_at=datetime.now(timezone.utc),
+    payload_json=json.dumps(payload, ensure_ascii=False),
   )
   return True
 
 
-@anvil.server.http_endpoint(MACHFORM_WEBHOOK_PATH, methods=['POST'])
-def receive_machform_order():
+@anvil.server.http_endpoint(MACHFORM_WEBHOOK_PATH + '/:form_id', methods=['POST'])
+def receive_machform_order(form_id):
   request = anvil.server.request
   respond = anvil.server.HttpResponse
+  if form_id not in MACHFORM_FORM_IDS:
+    return respond(404, 'Unknown MachForm form.')
   secret = _machform_webhook_secret()
   if not secret:
     return respond(503, 'MachForm receiver is disabled.')
@@ -1626,18 +1630,14 @@ def receive_machform_order():
       credential.encode('utf-8'), secret.encode('utf-8')):
     return respond(401, 'Invalid webhook credential.')
 
-  form_id = str(order.get('form_id', '')).strip()
-  entry_id = str(order.get('entry_id', '')).strip()
-  if form_id not in MACHFORM_FORM_IDS or not re.fullmatch(r'[0-9]{1,32}', entry_id):
-    return respond(400, 'A supported form_id and numeric entry_id are required.')
-  if any(not isinstance(order.get(field), str) or not order[field].strip()
-         for field in ('location', 'items')):
-    return respond(400, 'Location and item details are required.')
+  order.pop('webhook_token', None)
+  if not order:
+    return respond(400, 'No submission fields received.')
 
-  normalized = {'form_id': form_id, 'entry_id': entry_id}
-  for field in ('location', 'items', 'requester', 'submitted_at'):
-    value = order.get(field)
-    if isinstance(value, str) and value.strip():
-      normalized[field] = value.strip()
-  created = _save_webhook_order(f"{form_id}:{entry_id}", normalized)
-  return respond(201 if created else 200, 'Order received.' if created else 'Order already received.')
+  entry_id = order.get('entry_id')
+  if isinstance(entry_id, (str, int)) and not isinstance(entry_id, bool):
+    entry_id = str(entry_id).strip() or None
+  else:
+    entry_id = None
+  created = _save_machform_submission(form_id, entry_id, order)
+  return respond(201 if created else 200, 'Submission saved.' if created else 'Submission already saved.')

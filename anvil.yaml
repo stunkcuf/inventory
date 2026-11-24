@@ -326,13 +326,23 @@ db_schema:
     indexes: []
     server: full
     title: inventory_summary_total
-  machform_orders:
+  machform_inbox:
     client: none
     columns:
-    - admin_ui: {width: 200}
-      client_hidden: null
-      name: machform_submission_key
+    - name: form_id
       type: string
+    - name: entry_id
+      type: string
+    - name: received_at
+      type: datetime
+    - name: payload_json
+      type: string
+    indexes: []
+    server: full
+    title: machform_inbox
+  machform_orders:
+    client: full
+    columns:
     - admin_ui: {width: 200}
       client_hidden: null
       name: items_json
