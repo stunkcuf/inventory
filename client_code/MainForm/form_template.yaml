@@ -3,6 +3,9 @@ components:
   - name: link_inventory
     properties: {icon: 'fa:cubes', text: Inventory}
     type: Link
+  - name: link_stock_counts
+    properties: {icon: 'fa:check-square-o', text: Stock Counts}
+    type: Link
   - name: order_filling
     properties: {icon: 'fa:inbox', text: Orders}
     type: Link

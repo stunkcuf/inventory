@@ -521,6 +521,34 @@ db_schema:
     indexes: []
     server: full
     title: purchase_order_lines
+  stock_counts:
+    client: none
+    columns:
+    - name: inventory_id
+      type: string
+    - name: item_name
+      type: string
+    - name: category
+      type: string
+    - name: expected
+      type: number
+    - name: counted
+      type: number
+    - name: counted_at
+      type: datetime
+    - name: counted_by
+      target: users
+      type: link_single
+    - name: status
+      type: string
+    - name: reviewed_at
+      type: datetime
+    - name: reviewed_by
+      target: users
+      type: link_single
+    indexes: []
+    server: full
+    title: stock_counts
   stock_transactions:
     client: full
     columns:

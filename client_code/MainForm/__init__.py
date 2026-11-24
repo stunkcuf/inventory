@@ -3,6 +3,7 @@ from anvil import *
 import anvil.users
 import anvil.server
 from .InventoryForm import InventoryForm
+from .StockCountsForm import StockCountsForm
 from .ReceivingForm import ReceivingForm
 from .MachFormInbox import MachFormInbox
 from ..admin.AdminForm import AdminForm
@@ -41,7 +42,7 @@ class MainForm(MainFormTemplate):
     self.content_panel.add_component(form)
     self.page_heading.text = heading or ''
     self.page_heading.visible = bool(heading)
-    for candidate in (self.link_inventory, self.order_filling, *self.admin_links):
+    for candidate in (self.link_inventory, self.link_stock_counts, self.order_filling, *self.admin_links):
       candidate.role = 'selected' if candidate is link else None
 
   def show_admin_page(self, form_type, link, heading=None):
@@ -56,6 +57,10 @@ class MainForm(MainFormTemplate):
   @handle("link_inventory", "click")
   def link_inventory_click(self, **event_args):
     self.go_to_inventory()
+
+  @handle("link_stock_counts", "click")
+  def link_stock_counts_click(self, **event_args):
+    self.show_page(StockCountsForm, self.link_stock_counts, "Stock Counts")
 
   @handle("order_filling", "click")
   def order_filling_click(self, **event_args):
