@@ -6,21 +6,21 @@ import anvil.server
 class RowTemplate2(RowTemplate2Template):
   def __init__(self, **properties):
     self.init_components(**properties)
-    on_hand = self.item.get('On_Hand', 0)
-    minimum = self.item.get('Minimum_Amt', 0)
-    self.item['To_Order'] = max(0, minimum - on_hand)
-    self.refresh_data_bindings()
+
+  def quantity_to_order(self):
+    on_hand = self.item['On_Hand'] or 0
+    minimum = self.item['Minimum_Amt'] or 0
+    return max(0, minimum - on_hand)
 
   def btn_plus_click(self, **event_args):
     """Increment stock with PO# tracking"""
     po_number = anvil.js.window.prompt("Enter PO# for items received:")
 
     if po_number:
-      old_stock = self.item['On_Hand']
-      self.item['On_Hand'] += 1
-      new_stock = self.item['On_Hand']
-      ma = self.item['Minimum_Amt'] or 0
-      self.item['To_Order'] = max(0, ma - self.item['On_Hand'])
+      old_stock = self.item['On_Hand'] or 0
+      new_stock = old_stock + 1
+      minimum = self.item['Minimum_Amt'] or 0
+      self.item.update(On_Hand=new_stock, To_Order=max(0, minimum - new_stock))
 
       # Log to stock_transactions
       try:
@@ -49,15 +49,14 @@ class RowTemplate2(RowTemplate2Template):
 
   def btn_minus_click(self, **event_args):
     """Decrement stock with Requisition# tracking"""
-    if self.item['On_Hand'] > 0:
+    if (self.item['On_Hand'] or 0) > 0:
       req_number = anvil.js.window.prompt("Enter Requisition/Request # for items issued:")
 
       if req_number:
         old_stock = self.item['On_Hand']
-        self.item['On_Hand'] -= 1
-        new_stock = self.item['On_Hand']
-        ma = self.item['Minimum_Amt'] or 0
-        self.item['To_Order'] = max(0, ma - self.item['On_Hand'])
+        new_stock = old_stock - 1
+        minimum = self.item['Minimum_Amt'] or 0
+        self.item.update(On_Hand=new_stock, To_Order=max(0, minimum - new_stock))
 
         # Log to stock_transactions
         try:

@@ -33,32 +33,31 @@ class RowTemplate3(RowTemplate3Template):
 
   def check_ordered_change(self, **event_args):
     """This method is called when the checkbox is toggled"""
+    previous_status = self.item['Ordered']
+    new_status = self.check_ordered.checked
+    self.check_ordered.enabled = False
     try:
-      new_status = self.check_ordered.checked
-      self.item['Ordered'] = new_status
-
-      # Visual cue: Grey out if checked
-      if new_status:
-        self.link_item.foreground = "#999"
-      else:
-        self.link_item.foreground = "blue" if self.item['Item_Link'] else "black"
-
-      # Update server
       result = anvil.server.call(
-        'check_ordered', 
-        self.item['Item'], 
-        self.item['Category'], 
-        new_status
+        'check_ordered', self.item['Item'], self.item['Category'], new_status
       )
-
-      if not result:
-        alert(f"Warning: Could not find '{self.item['Item']}' in the database tables.")
-      else:
-        # Update parent form's summary
-        parent_form = self.parent.parent.parent
-        if hasattr(parent_form, 'update_summary'):
-          parent_form.update_summary()
-
     except Exception as e:
-      print(f"Error calling server: {e}")
-      alert(f"Communication Error: {e}")
+      self.check_ordered.checked = previous_status
+      alert(f"Could not save order status: {e}")
+      return
+    finally:
+      self.check_ordered.enabled = True
+
+    if not result:
+      self.check_ordered.checked = previous_status
+      alert(f"Could not find '{self.item['Item']}' in the ordering table.")
+      return
+
+    self.item['Ordered'] = new_status
+    if new_status:
+      self.link_item.foreground = "#999"
+    else:
+      self.link_item.foreground = "blue" if self.item['Item_Link'] else "black"
+    from anvil import get_open_form
+    for component in get_open_form().content_panel.get_components():
+      if hasattr(component, 'update_summary'):
+        component.update_summary()

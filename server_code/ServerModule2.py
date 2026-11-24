@@ -3,12 +3,10 @@ import anvil.tables as tables
 from anvil.tables import app_tables
 import anvil.server
 import anvil.tables.query as q
-import pandas as pd
 import io
-import numpy as np
 import re
 from datetime import datetime
-import openpyxl
+from itertools import islice
 
 
 # --- LOCATION MAPPING SYSTEM ---
@@ -228,15 +226,14 @@ def get_inventory_fast(category="All", search_query=None, subcategory=None, limi
   # Get results
   results = app_tables.inventory.search(tables.order_by("Item", ascending=True), **search_args)
 
-  # Apply limit if specified (None = no limit)
-  if limit:
-    limited_results = list(results)[:limit]
-    print(f"📦 Loaded {len(limited_results)} of {len(list(results))} inventory items (limit: {limit})")
-    return limited_results
-  else:
-    all_results = list(results)
-    print(f"📦 Loaded all {len(all_results)} inventory items (no limit)")
-    return all_results
+  return list(islice(results, limit)) if limit else list(results)
+
+@anvil.server.callable
+def get_inventory_view(category="All", search_query=None):
+  return {
+    'items': get_inventory_fast(category, search_query),
+    'subcategories': get_subcategories(category),
+  }
 
 @anvil.server.callable
 def get_subcategories(category="All"):
@@ -560,6 +557,11 @@ def process_excel_import(file, import_mode='full'):
   WHY: Large files timeout - chunking allows completion
   RETURNS: Detailed import summary with what was processed
   """
+
+  require_admin()
+  import numpy as np
+  import openpyxl
+  import pandas as pd
 
   # Initialize import statistics
   import_stats = {
@@ -1111,15 +1113,15 @@ def get_shopping_list():
   items = []
   for inv in app_tables.inventory.search():
     item_nm = inv['Item']
-    cat = inv.get('Category', 'Office')
+    cat = inv.get('Category') or 'Office'
     master = off_m if cat == "Office" else cen_m
     info = master.get(item_nm, {})
     oh, ma = (inv.get('On_Hand') or 0), (inv.get('Minimum_Amt') or 0)
 
     if oh < ma:
-      price = info.get('Price', 0) if info else 0
+      price = (info.get('Price') or 0) if info else 0
       item_link = info.get('Item_Link') if info else None
-      ordered = info.get('Ordered', False) if info else False
+      ordered = bool(info.get('Ordered')) if info else False
 
       if len(items) < 3:
         print(f"Shopping item: {item_nm} | Cat: {cat} | Found in calcs: {item_nm in master} | Price: {price} | URL: {item_link}")
@@ -1310,6 +1312,7 @@ def export_order_history_csv(history):
 @anvil.server.callable
 def clear_order_history():
   """Clear all order history"""
+  require_admin()
   reset_count = 0
 
   for table in [app_tables.office_calcs, app_tables.center_calcs]:
@@ -1347,38 +1350,25 @@ def save_machform_order(order_data):
 
 @anvil.server.callable
 def get_machform_orders(status_filter="All"):
-  """Get MachForm orders with optional status filter"""
-  try:
-    search_args = {}
-    if status_filter and status_filter != "All":
-      search_args['status'] = status_filter
-
-    orders = app_tables.machform_orders.search(
-      tables.order_by('date_requested', ascending=False),
-      **search_args
-    )
-
-    result = []
-    for order in orders:
-      result.append({
-        'order_id': order.get_id(),
-        'date_requested': order['date_requested'],
-        'requester_name': order['requester_name'],
-        'location': order['location'],
-        'category': order['category'],
-        'items_summary': order['items_summary'],
-        'total_cost': order['total_cost'],
-        'status': order['status']
-      })
-
-    print(f"Retrieved {len(result)} orders")
-    return result
-
-  except Exception as e:
-    print(f"❌ Error getting orders: {e}")
-    import traceback
-    traceback.print_exc()
-    return []
+  """Return a bounded, read-only preview using the configured order columns."""
+  if anvil.users.get_user() is None:
+    raise PermissionError("Sign in to view orders")
+  filters = {}
+  if status_filter and status_filter != "All":
+    filters['fulfillment_status'] = status_filter
+  orders = app_tables.machform_orders.search(
+    tables.order_by('fulfilled_date', ascending=False), **filters
+  )
+  rows = list(islice(orders, 101))
+  return {
+    'orders': [
+      {column: order[column] for column in (
+        'items_json', 'fulfillment_status', 'fulfilled_by', 'fulfilled_date', 'notes'
+      )}
+      for order in rows[:100]
+    ],
+    'has_more': len(rows) > 100,
+  }
 
 
 @anvil.server.callable
@@ -1470,6 +1460,7 @@ def log_audit(action, table_name, item_name, old_value=None, new_value=None, det
 @anvil.server.callable
 def get_audit_logs(limit=100, table_filter=None):
   """Get recent audit logs"""
+  require_admin()
   try:
     search_args = {}
     if table_filter and table_filter != "All":
@@ -1481,7 +1472,7 @@ def get_audit_logs(limit=100, table_filter=None):
     )
     
     result = []
-    for log in list(logs)[:limit]:
+    for log in islice(logs, limit):
       result.append({
         'timestamp': log['timestamp'],
         'user_email': log['user_email'],
@@ -1564,13 +1555,3 @@ def update_order_fulfillment(order_id, new_status, notes):
     import traceback
     traceback.print_exc()
     return False
-    @anvil.server.callable
-    def get_audit_log_form():
-      """Create and return AuditLogForm instance from server side"""
-  try:
-    # Import on server side where it works
-    from ..admin import AuditLogForm
-    return AuditLogForm.AuditLogForm()
-  except Exception as e:
-    print(f"Server: Error creating AuditLogForm: {e}")
-    return None

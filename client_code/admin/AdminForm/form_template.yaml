@@ -21,7 +21,7 @@ components:
   type: FileLoader
 - layout_properties: {grid_position: 'FQLPTC,CRCXQM'}
   name: label_2
-  properties: {text: above is a shopping list to help for ordering and tracking. once item is marked it will stay marked. when the order comes in and fills over the min. on hand it will reset it self automatically.}
+  properties: {text: "The shopping list shows items below minimum stock. Use its checkbox to update an item’s ordered status."}
   type: Label
 - layout_properties: {grid_position: 'FQLPTC,UQWNHV'}
   name: label_1
