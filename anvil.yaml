@@ -498,6 +498,29 @@ db_schema:
     indexes: []
     server: full
     title: order_items Table
+  purchase_order_lines:
+    client: none
+    columns:
+    - name: po_number
+      type: string
+    - name: item_name
+      type: string
+    - name: category
+      type: string
+    - name: inventory_item
+      target: inventory
+      type: link_single
+    - name: ordered_quantity
+      type: number
+    - name: received_quantity
+      type: number
+    - name: canceled
+      type: bool
+    - name: ordered_at
+      type: datetime
+    indexes: []
+    server: full
+    title: purchase_order_lines
   stock_transactions:
     client: full
     columns:
@@ -531,6 +554,10 @@ db_schema:
       client_hidden: false
       name: timestamp
       type: datetime
+    - name: purchase_order_line_id
+      type: string
+    - name: delivery_reference
+      type: string
     indexes: []
     server: full
     title: stock_transactions
