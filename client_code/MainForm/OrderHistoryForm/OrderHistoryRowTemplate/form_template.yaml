@@ -13,7 +13,11 @@ components:
       name: label_category
       properties: {}
       type: Label
-    - layout_properties: {col_xs: 9, row: null, width_xs: 3}
+    - layout_properties: {col_xs: 9, row: null, width_xs: 2}
+      name: label_po
+      properties: {}
+      type: Label
+    - layout_properties: {col_xs: 11, row: null, width_xs: 1}
       name: link_view
       properties: {text: 🔗 View}
       type: Link

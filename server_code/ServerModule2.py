@@ -931,8 +931,7 @@ def process_excel_import(file, import_mode='full'):
               calcs_table = app_tables.office_calcs if cat == "Office" else app_tables.center_calcs
               matching_items = calcs_table.search(Item=item_name)
               for existing_item in matching_items:
-                existing_item['Ordered'] = False
-                existing_item['Date_Ordered'] = None
+                existing_item.update(Ordered=False, Date_Ordered=None, PO_Number=None)
 
           elif "calcs" in table_name:
             price = 0
@@ -1211,7 +1210,8 @@ def get_shopping_list():
         'Supplier': supplier,
         'Price': price,
         'Item_Link': item_link, 
-        'Ordered': ordered
+        'Ordered': ordered,
+        'PO_Number': info.get('PO_Number') if ordered else None
       })
 
   print(f"Total shopping list items: {len(items)}")
@@ -1219,11 +1219,17 @@ def get_shopping_list():
   return sorted(items, key=lambda x: (x.get('Ordered', False), x['Category'], x['Item']))
 
 @anvil.server.callable
-def check_ordered(item_name, category, status):
+@tables.in_transaction
+def check_ordered(item_name, category, status, po_number=None):
   """
   IMPROVED: Better error handling and feedback + AUDIT LOGGING
   WHY: Prevents silent failures, handles duplicates properly, tracks all changes
   """
+  if status and po_number is not None:
+    if not isinstance(po_number, str) or not po_number.strip() or len(po_number.strip()) > 100:
+      raise ValueError("Enter a PO number of 1 to 100 characters.")
+    po_number = po_number.strip()
+
   table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
 
   # Use .search() to handle potential duplicates
@@ -1235,9 +1241,12 @@ def check_ordered(item_name, category, status):
 
   # Update all matching rows (handles duplicates if they exist)
   for row in matching_rows:
-    old_status = row['Ordered']  # Save old value for audit
-    row['Ordered'] = status
-    row['Date_Ordered'] = datetime.now().date() if status else None
+    old_status = row['Ordered']
+    saved_po = (po_number or row['PO_Number']) if status else None
+    if old_status == status and row['PO_Number'] == saved_po:
+      continue
+    ordered_date = (row['Date_Ordered'] or datetime.now().date()) if status else None
+    row.update(Ordered=status, Date_Ordered=ordered_date, PO_Number=saved_po)
 
     # AUDIT LOG
     log_audit(
@@ -1246,7 +1255,8 @@ def check_ordered(item_name, category, status):
       item_name=item_name,
       old_value=f"Ordered: {old_status}",
       new_value=f"Ordered: {status}",
-      details=f"Shopping list: Marked as {'ordered' if status else 'not ordered'}"
+      details=(f"Shopping list: Marked ordered (PO {po_number})" if status and po_number
+               else f"Shopping list: Marked as {'ordered' if status else 'not ordered'}")
     )
 
   if len(matching_rows) > 1:
@@ -1264,7 +1274,8 @@ def get_ordered_history():
       history.append({
         'Item': r['Item'], 
         'Source': source,
-        'Date': r['Date_Ordered'], 
+        'Date': r['Date_Ordered'],
+        'PO_Number': r['PO_Number'],
         'Link': r['Item_Link']
       })
   return sorted(history, key=lambda x: str(x['Date']), reverse=True)
@@ -1286,8 +1297,7 @@ def sync_inventory_status():
 
       for row in matching_rows:
         if row['Ordered'] == True:
-          row['Ordered'] = False
-          row['Date_Ordered'] = None
+          row.update(Ordered=False, Date_Ordered=None, PO_Number=None)
           reset_count += 1
 
   return reset_count
@@ -1360,14 +1370,18 @@ def export_order_history_csv(history):
     output = StringIO()
     writer = csv.writer(output)
 
-    writer.writerow(['Date Ordered', 'Item', 'Category', 'Link'])
+    writer.writerow(['Date Ordered', 'Item', 'Category', 'Link', 'PO Number'])
 
     for item in history:
+      po_number = str(item.get('PO_Number') or '')
+      if po_number.startswith(('=', '+', '-', '@', '\t', '\r', '\n')):
+        po_number = "'" + po_number
       writer.writerow([
         str(item.get('Date', '')),
         item.get('Item', ''),
         item.get('Source', ''),
-        item.get('Link', '')
+        item.get('Link', ''),
+        po_number
       ])
 
     csv_data = output.getvalue()
@@ -1394,8 +1408,7 @@ def clear_order_history():
 
   for table in [app_tables.office_calcs, app_tables.center_calcs]:
     for row in table.search(Ordered=True):
-      row['Ordered'] = False
-      row['Date_Ordered'] = None
+      row.update(Ordered=False, Date_Ordered=None, PO_Number=None)
       reset_count += 1
 
   print(f"Cleared {reset_count} order history records")

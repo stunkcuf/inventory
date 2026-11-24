@@ -11,6 +11,7 @@ class OrderHistoryRowTemplate(OrderHistoryRowTemplateTemplate):
     self.label_date.text = str(self.item.get('Date', 'No date'))
     self.label_item.text = self.item.get('Item', 'Unknown')
     self.label_category.text = self.item.get('Source', 'Unknown')
+    self.label_po.text = f"PO {self.item['PO_Number']}" if self.item.get('PO_Number') else ''
 
     # Show/hide link
     link = self.item.get('Link')

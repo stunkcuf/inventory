@@ -347,6 +347,7 @@ MOBILE OPTIMIZATION
   display: flex;
   align-items: center;
   min-height: 38px;
+  overflow-wrap: anywhere;
 }
 
 .inventory-workspace .anvil-role-shopping-order-check input {
