@@ -1403,9 +1403,16 @@ def review_stock_count(count_id, apply_adjustment):
                reviewed_at=reviewed_at, reviewed_by=user)
 
 
+def require_receiving_user():
+  user = anvil.users.get_user()
+  if user is None or (user.get('role') or 'staff') not in ('admin', 'staff'):
+    raise PermissionError("Sign in as staff or admin to access Receiving.")
+  return user
+
+
 @anvil.server.callable
 def get_receiving_orders():
-  require_admin()
+  require_receiving_user()
   orders = {}
   for row in app_tables.purchase_order_lines.search(
       tables.order_by('ordered_at', ascending=False), canceled=False):
@@ -1419,7 +1426,7 @@ def get_receiving_orders():
 @anvil.server.callable
 @tables.in_transaction
 def record_po_receipt(line_id, quantity, delivery_reference):
-  require_admin()
+  user = require_receiving_user()
   quantity = whole_quantity(quantity)
   if not isinstance(delivery_reference, str) or not 1 <= len(delivery_reference.strip()) <= 100:
     raise ValueError("Enter a packing slip or delivery reference.")
@@ -1452,7 +1459,7 @@ def record_po_receipt(line_id, quantity, delivery_reference):
   line.update(inventory_item=item, received_quantity=line['received_quantity'] + quantity)
   app_tables.stock_transactions.add_row(
     item=item, change=quantity, transaction_type='received', po_number=line['po_number'],
-    user=anvil.users.get_user(), timestamp=datetime.now(),
+    user=user, timestamp=datetime.now(),
     purchase_order_line_id=line_id, delivery_reference=delivery_reference,
   )
   return True

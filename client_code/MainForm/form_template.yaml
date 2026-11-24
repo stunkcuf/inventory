@@ -9,11 +9,11 @@ components:
   - name: order_filling
     properties: {icon: 'fa:inbox', text: Orders}
     type: Link
+  - name: link_receiving
+    properties: {icon: 'fa:truck', text: Receiving}
+    type: Link
   - name: link_shopping_list
     properties: {icon: 'fa:shopping-cart', text: Shopping List, visible: false}
-    type: Link
-  - name: link_receiving
-    properties: {icon: 'fa:truck', text: Receiving, visible: false}
     type: Link
   - name: link_order_history
     properties: {icon: 'fa:history', text: Order History, visible: false}
