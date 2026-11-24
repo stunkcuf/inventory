@@ -9,6 +9,9 @@ components:
   - name: link_shopping_list
     properties: {icon: 'fa:shopping-cart', text: Shopping List, visible: false}
     type: Link
+  - name: link_receiving
+    properties: {icon: 'fa:truck', text: Receiving, visible: false}
+    type: Link
   - name: link_order_history
     properties: {icon: 'fa:history', text: Order History, visible: false}
     type: Link

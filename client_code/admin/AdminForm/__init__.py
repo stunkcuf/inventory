@@ -154,3 +154,6 @@ class AdminForm(AdminFormTemplate):
 
   def link_audit_logs_click(self, **event_args):
     get_open_form().show_audit_logs()
+
+  def machform_inbox_click(self, **event_args):
+    get_open_form().show_machform_inbox()

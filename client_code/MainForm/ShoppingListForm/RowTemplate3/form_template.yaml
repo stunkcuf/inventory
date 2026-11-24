@@ -4,10 +4,17 @@ components:
   name: check_ordered
   properties: {role: shopping-order-check}
   type: CheckBox
-- layout_properties: {column: VJQQOR}
-  name: link_item
-  properties: {role: shopping-item-link}
-  type: Link
+- components:
+  - name: link_item
+    properties: {role: shopping-item-link}
+    type: Link
+  - event_bindings: {click: add_purchase_link_click}
+    name: add_purchase_link
+    properties: {text: Add purchase link, visible: false}
+    type: Link
+  layout_properties: {column: VJQQOR}
+  name: item_details
+  type: LinearPanel
 - layout_properties: {column: JKSDUP}
   name: lbl_dept
   properties: {}

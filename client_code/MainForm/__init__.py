@@ -3,6 +3,8 @@ from anvil import *
 import anvil.users
 import anvil.server
 from .InventoryForm import InventoryForm
+from .ReceivingForm import ReceivingForm
+from .MachFormInbox import MachFormInbox
 from ..admin.AdminForm import AdminForm
 from ..admin.AuditViewer import AuditViewer
 from .SummaryForm import SummaryForm
@@ -25,7 +27,7 @@ class MainForm(MainFormTemplate):
     except Exception:
       self.user_role = self.user.get('role', 'staff')
 
-    self.admin_links = (self.link_shopping_list, self.link_order_history,
+    self.admin_links = (self.link_shopping_list, self.link_receiving, self.link_order_history,
                         self.link_summaries, self.link_admin)
     for link in self.admin_links:
       link.visible = self.user_role == 'admin'
@@ -62,6 +64,13 @@ class MainForm(MainFormTemplate):
   @handle("link_shopping_list", "click")
   def link_shopping_list_click(self, **event_args):
     self.show_admin_page(ShoppingListForm, self.link_shopping_list)
+
+  @handle("link_receiving", "click")
+  def link_receiving_click(self, **event_args):
+    self.show_admin_page(ReceivingForm, self.link_receiving, "Receiving")
+
+  def show_machform_inbox(self):
+    self.show_admin_page(MachFormInbox, self.link_admin, "MachForm Inbox")
 
   @handle("link_order_history", "click")
   def link_order_history_click(self, **event_args):

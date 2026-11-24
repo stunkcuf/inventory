@@ -25,6 +25,10 @@ components:
     name: link_machform_integration
     properties: {icon: 'fa:link', text: MachForm Integration}
     type: Link
+  - event_bindings: {click: machform_inbox_click}
+    name: link_machform_inbox
+    properties: {icon: 'fa:inbox', text: MachForm Inbox}
+    type: Link
   layout_properties: {grid_position: 'ADMINR,INTAKE'}
   name: integrations_panel
   properties: {role: inventory-admin-card}

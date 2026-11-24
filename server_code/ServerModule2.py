@@ -1208,6 +1208,7 @@ def get_shopping_list():
         'Category': cat, 
         'Source': cat,
         'Supplier': supplier,
+        'Inventory_ID': inv.get_id(),
         'Price': price,
         'Item_Link': item_link, 
         'Ordered': ordered,
@@ -1220,7 +1221,7 @@ def get_shopping_list():
 
 @anvil.server.callable
 @tables.in_transaction
-def check_ordered(item_name, category, status, po_number=None):
+def check_ordered(item_name, category, status, po_number=None, ordered_quantity=None, inventory_id=None):
   """
   IMPROVED: Better error handling and feedback + AUDIT LOGGING
   WHY: Prevents silent failures, handles duplicates properly, tracks all changes
@@ -1238,6 +1239,37 @@ def check_ordered(item_name, category, status, po_number=None):
   if not matching_rows:
     print(f"Warning: Item '{item_name}' not found in {category} calcs table")
     return False
+
+  if ordered_quantity is not None:
+    require_admin()
+    quantity = whole_quantity(ordered_quantity)
+    if not status or not po_number:
+      raise ValueError("A PO number is required to save an ordered quantity.")
+    inventory = app_tables.inventory.get_by_id(inventory_id)
+    if inventory is None or inventory['Item'] != item_name or (inventory['Category'] or 'Office') != category:
+      raise ValueError("This inventory item changed. Refresh the shopping list.")
+    existing = app_tables.purchase_order_lines.get(
+      po_number=po_number, item_name=item_name, category=category, canceled=False
+    )
+    if existing is None:
+      if any(row['Ordered'] for row in matching_rows):
+        raise ValueError("This item is already marked ordered. Refresh the shopping list.")
+      app_tables.purchase_order_lines.add_row(
+        po_number=po_number, item_name=item_name, category=category, inventory_item=inventory,
+        ordered_quantity=quantity, received_quantity=0, canceled=False, ordered_at=datetime.now(),
+      )
+    elif existing['ordered_quantity'] != quantity or existing['inventory_item'] != inventory:
+      raise ValueError("This item already has a different quantity or stock row on that PO.")
+  elif not status:
+    for previous_po in {row['PO_Number'] for row in matching_rows if row['Ordered'] and row['PO_Number']}:
+      line = app_tables.purchase_order_lines.get(
+        po_number=previous_po, item_name=item_name, category=category, canceled=False
+      )
+      if line is not None:
+        require_admin()
+        if line['received_quantity']:
+          raise ValueError("This item already has a receipt and cannot be unchecked.")
+        line['canceled'] = True
 
   # Update all matching rows (handles duplicates if they exist)
   for row in matching_rows:
@@ -1263,6 +1295,102 @@ def check_ordered(item_name, category, status, po_number=None):
     print(f"Warning: Found {len(matching_rows)} duplicate entries for '{item_name}'")
 
   return True
+
+def whole_quantity(value):
+  if (isinstance(value, bool) or not isinstance(value, (int, float))
+      or not 1 <= value <= 1000000 or int(value) != value):
+    raise ValueError("Enter a whole quantity from 1 to 1,000,000.")
+  return int(value)
+
+
+@anvil.server.callable
+def get_receiving_orders():
+  require_admin()
+  orders = {}
+  for row in app_tables.purchase_order_lines.search(
+      tables.order_by('ordered_at', ascending=False), canceled=False):
+    orders.setdefault(row['po_number'], []).append({
+      'id': row.get_id(), 'item': row['item_name'], 'category': row['category'],
+      'ordered': row['ordered_quantity'], 'received': row['received_quantity'],
+    })
+  return orders
+
+
+@anvil.server.callable
+@tables.in_transaction
+def record_po_receipt(line_id, quantity, delivery_reference):
+  require_admin()
+  quantity = whole_quantity(quantity)
+  if not isinstance(delivery_reference, str) or not 1 <= len(delivery_reference.strip()) <= 100:
+    raise ValueError("Enter a packing slip or delivery reference.")
+  delivery_reference = delivery_reference.strip().casefold()
+  line = app_tables.purchase_order_lines.get_by_id(line_id)
+  if line is None or line['canceled']:
+    raise ValueError("This purchase order line is unavailable.")
+
+  previous = app_tables.stock_transactions.get(
+    purchase_order_line_id=line_id, delivery_reference=delivery_reference
+  )
+  if previous is not None:
+    if previous['change'] != quantity:
+      raise ValueError("That delivery reference was already recorded for this item with a different count.")
+    return False
+
+  outstanding = line['ordered_quantity'] - line['received_quantity']
+  if quantity > outstanding:
+    raise ValueError(f"Only {outstanding} are due. Review the packing slip before receiving extras.")
+
+  item = line['inventory_item']
+  if item is None:
+    # A workbook import may have replaced Data Table row IDs.
+    matches = list(app_tables.inventory.search(Item=line['item_name'], Category=line['category']))
+    if len(matches) != 1:
+      raise ValueError("The inventory item is missing or duplicated. Check Inventory before receiving it.")
+    item = matches[0]
+  new_stock = (item['On_Hand'] or 0) + quantity
+  item.update(On_Hand=new_stock, To_Order=max(0, (item['Minimum_Amt'] or 0) - new_stock))
+  line.update(inventory_item=item, received_quantity=line['received_quantity'] + quantity)
+  app_tables.stock_transactions.add_row(
+    item=item, change=quantity, transaction_type='received', po_number=line['po_number'],
+    user=anvil.users.get_user(), timestamp=datetime.now(),
+    purchase_order_line_id=line_id, delivery_reference=delivery_reference,
+  )
+  return True
+
+
+@anvil.server.callable
+@tables.in_transaction
+def add_missing_purchase_link(item_name, category, item_link):
+  require_admin()
+  if not isinstance(item_link, str) or len(item_link) > 2000:
+    raise ValueError("Enter a product URL up to 2,000 characters.")
+  _, url = shopping_ordering_source(item_link)
+  if url is None or any(character.isspace() for character in url):
+    raise ValueError("Enter a valid product URL.")
+  table = app_tables.office_calcs if category == "Office" else app_tables.center_calcs
+  rows = list(table.search(Item=item_name))
+  if not rows:
+    # The inventory item may predate its matching calculation row.
+    if not list(app_tables.inventory.search(Item=item_name, Category=category)):
+      raise ValueError("This inventory item is no longer available.")
+    table.add_row(Item=item_name, Item_Link=url, Ordered=False)
+  else:
+    for row in rows:
+      if shopping_ordering_source(row['Item_Link'])[1] is None:
+        row['Item_Link'] = url
+  return True
+
+
+@anvil.server.callable
+def get_machform_inbox():
+  require_admin()
+  rows = app_tables.machform_inbox.search(tables.order_by('received_at', ascending=False))
+  return [
+    {'form_id': row['form_id'], 'entry_id': row['entry_id'], 'received_at': row['received_at'],
+     'payload': row['payload_json']}
+    for row in islice(rows, 25)
+  ]
+
 
 @anvil.server.callable
 def get_ordered_history():
