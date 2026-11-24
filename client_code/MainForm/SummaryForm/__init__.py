@@ -37,7 +37,7 @@ class SummaryForm(SummaryFormTemplate):
       # Get the ready-to-render Plotly figure dict from the server
       fig_dict = anvil.server.call('get_spending_chart_figure', selected_table)
 
-      if not fig_dict or 'data' not in fig_dict or len(fig_dict.get('data', [])) == 0:
+      if not fig_dict or 'data' not in fig_dict:
         self._show_no_data()
         return
 
