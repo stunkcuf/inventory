@@ -152,39 +152,5 @@ class AdminForm(AdminFormTemplate):
         print(f"❌ Error clearing inventory: {e}")
         Notification(f"❌ Error clearing inventory: {str(e)}", style="danger", timeout=5).show()
 
-  def shopping_list_link_click(self, **event_args):
-    """Navigate to Shopping List"""
-    try:
-      main_form = get_open_form()
-      main_form.link_shopping_list_click()
-    except Exception as e:
-      print(f"❌ Error navigating to shopping list: {e}")
-      Notification("Error navigating to shopping list", style="danger").show()
-
-  def link_order_history_click(self, **event_args):
-    """Navigate to Order History"""
-    try:
-      print("AdminForm: Order History link clicked!")
-      main_form = get_open_form()
-      main_form.link_order_history_click()
-    except Exception as e:
-      print(f"❌ Error navigating to order history: {e}")
-      Notification("Error navigating to order history", style="danger").show()
-
   def link_audit_logs_click(self, **event_args):
-    """Navigate to Audit Logs"""
-    print("🔍 Audit logs link clicked!")
-
-    try:
-      from ..AuditViewer import AuditViewer  # NEW NAME
-      print("✅ Import successful!")
-
-      main_layout = get_open_form()
-      main_layout.content_panel.clear()
-      main_layout.content_panel.add_component(AuditViewer())
-
-      print("✅ Navigated to Audit Logs!")
-
-    except Exception as e:
-      print(f"❌ ERROR: {e}")
-      alert(f"Error: {str(e)}", title="Error")
+    get_open_form().show_audit_logs()

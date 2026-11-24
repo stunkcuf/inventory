@@ -1,33 +1,35 @@
 components:
 - components:
-  - event_bindings: {}
-    layout_properties: {}
-    name: order_filling
-    properties: {text: Orders}
+  - name: link_inventory
+    properties: {icon: 'fa:cubes', text: Inventory}
     type: Link
-  - event_bindings: {}
-    layout_properties: {}
-    name: link_inventory
-    properties: {text: Inventory}
+  - name: order_filling
+    properties: {icon: 'fa:inbox', text: Orders}
     type: Link
-  - event_bindings: {}
-    layout_properties: {}
-    name: link_summaries
-    properties: {text: Summaries}
+  - name: link_shopping_list
+    properties: {icon: 'fa:shopping-cart', text: Shopping List, visible: false}
     type: Link
-  - event_bindings: {}
-    layout_properties: {}
-    name: link_admin
-    properties: {text: Admin/Upload}
+  - name: link_order_history
+    properties: {icon: 'fa:history', text: Order History, visible: false}
     type: Link
-  - layout_properties: {}
-    name: link_logout
-    properties: {align: right, icon: 'fa:sign-out', text: Logout}
+  - name: link_summaries
+    properties: {icon: 'fa:bar-chart', text: Summaries, visible: false}
     type: Link
-  layout_properties: {slot: ''}
+  - name: link_admin
+    properties: {icon: 'fa:cog', text: Admin, visible: false}
+    type: Link
+  layout_properties: {slot: navigation}
   name: navbar_links
-  properties: {align: left, border: '1'}
+  properties: {align: left, visible: false}
   type: FlowPanel
+- layout_properties: {slot: account}
+  name: link_logout
+  properties: {icon: 'fa:sign-out', text: Log out, visible: false}
+  type: Link
+- layout_properties: {slot: heading}
+  name: page_heading
+  properties: {role: inventory-page-heading, visible: false}
+  type: Label
 - layout_properties: {slot: default}
   name: content_panel
   properties: {}
@@ -35,7 +37,4 @@ components:
 container:
   properties: {html: '@theme:standard-page.html'}
   type: HtmlTemplate
-events: []
 is_package: true
-properties: []
-slots: {}

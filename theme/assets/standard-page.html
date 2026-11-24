@@ -1,34 +1,18 @@
-<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500" rel="stylesheet" rel="preload" as="font" crossorigin="anonymous">
-
-<div class="structure">
-  <div class="app-bar" anvil-drop-container=".anvil-container" anvil-drop-redirect=".placeholder">
-    <div class="top-left-btn" anvil-slot="top-left-btn"></div>
-    <div class="title" anvil-slot="title">
-      <div class="placeholder anvil-designer-only" anvil-if-slot-empty="title" anvil-drop-here>Inventory Management</div>
+<div class="inventory-shell">
+  <header class="inventory-header">
+    <div class="inventory-header-inner">
+      <div class="inventory-brand-row">
+        <div class="inventory-brand">
+          <span class="inventory-brand-icon fa fa-cubes" aria-hidden="true"></span>
+          <span>Inventory Management</span>
+        </div>
+        <div anvil-slot="account"></div>
+      </div>
+      <nav class="inventory-navigation" aria-label="Inventory navigation" anvil-slot="navigation"></nav>
     </div>
-    <div class="app-bar-nav" anvil-slot="nav-right"></div>
-    <div style="clear:both"></div>
-  </div>
-
-  <div class="content">
-    <div anvil-slot-repeat="default" class="anvil-measure-this"></div>
-    <div class="placeholder drop-here" anvil-if-slot-empty="default" anvil-drop-slot="default">Drop a ColumnPanel here.</div>
-  </div>
+  </header>
+  <main class="inventory-workspace">
+    <div anvil-slot="heading"></div>
+    <div anvil-slot="default"></div>
+  </main>
 </div>
-
-<script>
-  function adjustLayout() {
-    var appBar = $('.app-bar');
-    var topMargin = appBar.outerHeight() || 56;
-    if ($('#anvil-header').css('display') == 'block') { topMargin += 50; }
-
-    $('.content').css({
-      'margin-top': topMargin + 'px',
-      'margin-left': '0px',
-      'width': '100%'
-    });
-  }
-
-  $(document).ready(adjustLayout);
-  window.addEventListener('resize', adjustLayout);
-</script>
