@@ -19,22 +19,61 @@ class AdminForm(AdminFormTemplate):
       return
 
     panel = LinearPanel()
-    status = ("Paste this URL into the webhook settings for forms 161659 and 161453."
-              if settings['enabled'] else
-              "Receiver disabled. Configure machform_webhook_secret in Anvil App Secrets.")
+    panel.add_component(Label(text="1. In MachForm, open Notifications for each form and find "
+                                   "Send Form Data to Another Website."))
+    panel.add_component(Label(text="2. Enter the MachForm field names or merge tags below. "
+                                   "The items field should include quantities. Leave unknown fields blank."))
+    panel.add_component(Label(text="3. Copy the notes for whoever sets up MachForm. "
+                                   "These entries are temporary. Copy them before closing."))
+    panel.add_component(Label(text="Keep credentials and real order details out of these notes."))
+    status = ("Anvil has a webhook credential configured." if settings['enabled'] else
+              "The receiver is disabled until an Anvil admin configures its App Secret.")
     panel.add_component(Label(text=status))
+    panel.add_component(Label(text="Anvil destination URL", bold=True))
     panel.add_component(TextBox(text=settings['url'], enabled=False))
-    copy_button = Button(text="Copy webhook URL", icon="fa:clipboard")
 
-    def copy_url(**event_args):
-      try:
-        await_promise(window.navigator.clipboard.writeText(settings['url']))
-        Notification("Webhook URL copied.", style="success").show()
-      except Exception:
-        alert(settings['url'], title="Copy this webhook URL")
+    def add_copy_button(label, get_text):
+      button = Button(text=label, icon="fa:clipboard")
 
-    copy_button.set_event_handler('click', copy_url)
-    panel.add_component(copy_button)
+      def copy_text(**event_args):
+        value = get_text()
+        try:
+          await_promise(window.navigator.clipboard.writeText(value))
+          Notification("Copied to clipboard.", style="success").show()
+        except Exception:
+          alert(TextArea(text=value, height=220), title=label, large=True)
+
+      button.set_event_handler('click', copy_text)
+      panel.add_component(button)
+
+    add_copy_button("Copy webhook URL", lambda: settings['url'])
+    fields = (
+      ('entry_id', 'Entry ID field'),
+      ('location', 'Location field'),
+      ('items', 'Items and quantities field'),
+      ('requester', 'Requester field (optional)'),
+      ('submitted_at', 'Submission date field (optional)'),
+    )
+    mappings = {}
+    for form_id in ('161659', '161453'):
+      panel.add_component(Label(text=f"MachForm {form_id}", bold=True))
+      mappings[form_id] = {}
+      for key, label in fields:
+        field = TextBox(placeholder=label, tooltip=label)
+        panel.add_component(field)
+        mappings[form_id][key] = field
+
+    def setup_notes():
+      lines = [f"Anvil webhook URL: {settings['url']}"]
+      for form_id, inputs in mappings.items():
+        lines.extend(('', f"MachForm {form_id}", f"form_id = {form_id}"))
+        for key, field in inputs.items():
+          value = (field.text or '').strip()
+          if value or key in ('entry_id', 'location', 'items'):
+            lines.append(f"{key} = {value or '[field name needed]'}")
+      return '\n'.join(lines)
+
+    add_copy_button("Copy setup notes", setup_notes)
     alert(panel, title="MachForm Integration", large=True)
 
   def file_loader_1_change(self, file, **event_args):
