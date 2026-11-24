@@ -1,26 +1,24 @@
 components:
-- layout_properties: {column: JKSDUP}
-  name: lbl_dept
-  properties: {text: 'self.item[''Category'']'}
-  type: Label
+- event_bindings: {change: check_ordered_change}
+  layout_properties: {column: RTETBL}
+  name: check_ordered
+  properties: {role: shopping-order-check}
+  type: CheckBox
 - layout_properties: {column: VJQQOR}
   name: link_item
-  properties: {text: 'self.item[''Item'']', url: 'self.item[''Item_Link'']'}
+  properties: {role: shopping-item-link}
   type: Link
-- layout_properties: {column: OJLQEN}
-  name: lbl_price
-  properties: {text: 'f"${self.item[''Price'']:.2f}"'}
+- layout_properties: {column: JKSDUP}
+  name: lbl_dept
+  properties: {}
   type: Label
 - layout_properties: {column: LBWNFU}
   name: lbl_qty
-  properties: {text: 'self.item[''To_Order'']'}
+  properties: {bold: true, role: inventory-quantity}
   type: Label
-- data_bindings:
-  - {code: 'self.item[''Ordered'']', property: checked, writeback: false}
-  event_bindings: {change: check_ordered_change}
-  layout_properties: {column: RTETBL}
-  name: check_ordered
-  properties: {checked: true, text: ''}
-  type: CheckBox
+- layout_properties: {column: OJLQEN}
+  name: lbl_price
+  properties: {role: inventory-quantity}
+  type: Label
 container: {type: DataRowPanel}
 is_package: true

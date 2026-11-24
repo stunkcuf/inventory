@@ -281,6 +281,20 @@ color_scheme:
       - {color: 'rgba(255, 181, 155, 0.11)', name: Primary Overlay 3}
       name: Manarola Dark
 roles:
+- components: [FlowPanel]
+  name: shopping-list-toolbar
+- components: [Label]
+  name: shopping-supplier-heading
+- components: [CheckBox]
+  name: shopping-order-check
+- components: [Link]
+  name: shopping-item-link
+- components: [Link]
+  name: shopping-item-no-link
+- components: [DataRowPanel]
+  name: shopping-row
+- components: [DataRowPanel]
+  name: shopping-row-ordered
 - components: [ColumnPanel, LinearPanel, Plot]
   name: workspace-surface
 - components: [DataGrid]

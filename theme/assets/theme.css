@@ -308,3 +308,60 @@ MOBILE OPTIMIZATION
                              .anvil-role-inventory-remove-action):hover {
   filter: brightness(.94);
 }
+
+.inventory-workspace .anvil-role-shopping-list-toolbar .flow-panel-gutter {
+  align-items: center;
+  justify-content: flex-start !important;
+}
+
+.inventory-workspace .anvil-role-shopping-supplier-heading {
+  padding: 10px 14px;
+  margin-top: 8px;
+  border-left: 4px solid #197987;
+  border-radius: 6px;
+  background: #e4f1f2;
+  color: #124b55;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.inventory-workspace .anvil-role-shopping-row:nth-child(even) {
+  background: #f5f8fa;
+}
+
+.inventory-workspace .anvil-role-shopping-row-ordered {
+  background: #e8f5ed;
+}
+
+.inventory-workspace .anvil-role-shopping-row:hover,
+.inventory-workspace .anvil-role-shopping-row:focus-within {
+  background: #dceff1;
+}
+
+.inventory-workspace .anvil-role-shopping-row-ordered:hover,
+.inventory-workspace .anvil-role-shopping-row-ordered:focus-within {
+  background: #d4ebdf;
+}
+
+.inventory-workspace .anvil-role-shopping-order-check label {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+}
+
+.inventory-workspace .anvil-role-shopping-order-check input {
+  accent-color: #124b55;
+}
+
+.inventory-workspace .anvil-role-shopping-item-link,
+.inventory-workspace .anvil-role-shopping-item-link a {
+  color: #125765;
+  font-weight: 600;
+}
+
+.inventory-workspace .anvil-role-shopping-item-no-link,
+.inventory-workspace .anvil-role-shopping-item-no-link a {
+  color: #304653;
+  font-weight: 600;
+  cursor: default;
+}
