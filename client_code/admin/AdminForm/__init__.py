@@ -157,3 +157,25 @@ class AdminForm(AdminFormTemplate):
 
   def machform_inbox_click(self, **event_args):
     get_open_form().show_machform_inbox()
+
+
+  def stock_count_setup_click(self, **event_args):
+    try:
+      setup = anvil.server.call('get_stock_count_setup')
+    except Exception as error:
+      alert(f"Could not load Stock Count Setup: {error}")
+      return
+    panel = LinearPanel()
+    panel.add_component(Label(text="Choose how often items are due for a physical count. "
+                                   "The schedule applies to all departments."))
+    interval = DropDown(items=[(f"Every {days} days", days) for days in setup['options']],
+                        selected_value=setup['interval_days'])
+    panel.add_component(interval)
+    if not alert(panel, title="Stock Count Setup", buttons=[('Save schedule', True), ('Cancel', False)]):
+      return
+    try:
+      anvil.server.call('save_stock_count_setup', interval.selected_value)
+    except Exception as error:
+      alert(f"Could not save the schedule: {error}")
+      return
+    Notification(f"Stock counts are due every {interval.selected_value} days.", style='success').show()

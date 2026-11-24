@@ -17,6 +17,9 @@ class StockCountsForm(StockCountsFormTemplate):
     ], selected_value='due')
     self.view.set_event_handler('change', self.reset_view)
     toolbar.add_component(self.view)
+    self.department = DropDown(items=[('All departments', '')], selected_value='')
+    self.department.set_event_handler('change', self.reset_view)
+    toolbar.add_component(self.department)
     self.search = TextBox(placeholder="Search items or departments")
     self.search.set_event_handler('pressed_enter', self.reset_view)
     toolbar.add_component(self.search)
@@ -37,6 +40,11 @@ class StockCountsForm(StockCountsFormTemplate):
     except Exception as error:
       alert(f"Could not load stock counts: {error}")
       return
+    categories = sorted({row['category'] for row in self.data['items'] + self.data['counts']
+                         if row['category']}, key=str.lower)
+    selection = self.department.selected_value
+    self.department.items = [('All departments', '')] + [(name, name) for name in categories]
+    self.department.selected_value = selection if selection in categories else ''
     interval = self.data['interval_days']
     self.description.text = f"Items are due every {interval} days. Discrepancies go to an admin for review."
     self.render()
@@ -49,13 +57,15 @@ class StockCountsForm(StockCountsFormTemplate):
     self.results.clear()
     view = self.view.selected_value
     search = (self.search.text or '').strip().lower()
+    department = self.department.selected_value
     if view in ('due', 'all'):
       rows = [row for row in self.data['items']
               if view == 'all' or (row['due'] and not row['pending'])]
     else:
       rows = [row for row in self.data['counts']
               if row['review'] == (view == 'review')]
-    rows = [row for row in rows if search in f"{row['item']} {row['category'] or ''}".lower()]
+    rows = [row for row in rows if (not department or row['category'] == department)
+            and search in f"{row['item']} {row['category'] or ''}".lower()]
     if not rows:
       self.page = 0
       self.results.add_component(Label(text="No items match this view."))

@@ -521,6 +521,16 @@ db_schema:
     indexes: []
     server: full
     title: purchase_order_lines
+  stock_count_settings:
+    client: none
+    columns:
+    - name: name
+      type: string
+    - name: interval_days
+      type: number
+    indexes: []
+    server: full
+    title: stock_count_settings
   stock_counts:
     client: none
     columns:

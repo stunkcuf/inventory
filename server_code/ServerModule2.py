@@ -1303,7 +1303,33 @@ def whole_quantity(value):
   return int(value)
 
 
-STOCK_COUNT_INTERVAL_DAYS = 30
+DEFAULT_STOCK_COUNT_INTERVAL = 30
+STOCK_COUNT_INTERVAL_OPTIONS = (7, 14, 30, 60, 90)
+
+
+def stock_count_interval():
+  settings = app_tables.stock_count_settings.get(name='schedule')
+  return settings['interval_days'] if settings is not None else DEFAULT_STOCK_COUNT_INTERVAL
+
+
+@anvil.server.callable
+def get_stock_count_setup():
+  require_admin()
+  return {'interval_days': stock_count_interval(), 'options': list(STOCK_COUNT_INTERVAL_OPTIONS)}
+
+
+@anvil.server.callable
+@tables.in_transaction
+def save_stock_count_setup(interval_days):
+  require_admin()
+  if isinstance(interval_days, bool) or interval_days not in STOCK_COUNT_INTERVAL_OPTIONS:
+    raise ValueError("Choose a count interval from the list.")
+  settings = app_tables.stock_count_settings.get(name='schedule')
+  if settings is None:
+    app_tables.stock_count_settings.add_row(name='schedule', interval_days=interval_days)
+  else:
+    settings['interval_days'] = interval_days
+
 
 
 @anvil.server.callable
@@ -1312,7 +1338,8 @@ def get_stock_counts():
   if user is None:
     raise PermissionError("Sign in to view stock counts.")
 
-  cutoff = datetime.now().date() - timedelta(days=STOCK_COUNT_INTERVAL_DAYS)
+  interval_days = stock_count_interval()
+  cutoff = datetime.now().date() - timedelta(days=interval_days)
   pending = {}
   last_counted = {}
   recent = []
@@ -1347,7 +1374,7 @@ def get_stock_counts():
       'pending': inventory_id in pending, 'due': last is None or last <= cutoff,
     })
   return {'items': items, 'counts': recent, 'can_review': user.get('role') == 'admin',
-          'interval_days': STOCK_COUNT_INTERVAL_DAYS}
+          'interval_days': interval_days}
 
 
 @anvil.server.callable
