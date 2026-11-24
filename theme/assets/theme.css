@@ -208,3 +208,103 @@ MOBILE OPTIMIZATION
   select,
   .anvil-textbox,
   .anvil-dr
+/* Work surfaces share the header's teal accent and neutral borders. */
+.inventory-workspace .anvil-role-workspace-surface,
+.inventory-workspace .anvil-role-inventory-table {
+  background: #fff;
+  border: 1px solid #dce5eb;
+  border-radius: 12px;
+}
+
+.inventory-workspace .anvil-role-workspace-surface {
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.inventory-workspace .anvil-role-inventory-table {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.inventory-workspace .anvil-role-inventory-table .anvil-data-row-panel {
+  border-bottom: 1px solid #e8eef2;
+}
+
+.inventory-workspace .anvil-role-inventory-table .anvil-data-grid-header {
+  background: #ecf4f6;
+  color: #304653;
+  border-color: #dce5eb;
+}
+
+.inventory-workspace .anvil-role-inventory-table-row:hover {
+  background: #f5fafb;
+}
+
+.inventory-workspace .anvil-role-inventory-quantity,
+.inventory-workspace .anvil-role-inventory-shortage {
+  font-variant-numeric: tabular-nums;
+}
+
+.inventory-workspace .anvil-role-inventory-shortage {
+  color: #90430c;
+  font-weight: 700;
+}
+
+.inventory-workspace .anvil-role-workspace-status {
+  color: #496171;
+  font-weight: 500;
+}
+
+.inventory-workspace .anvil-role-inventory-row-actions .flow-panel-gutter {
+  flex-wrap: nowrap;
+  gap: 4px;
+  justify-content: flex-start !important;
+}
+
+.inventory-workspace :is(.anvil-role-workspace-button, .anvil-role-workspace-primary,
+                        .anvil-role-workspace-danger, .anvil-role-inventory-row-action,
+                        .anvil-role-inventory-remove-action) > .btn,
+.inventory-workspace .btn:is(.anvil-role-workspace-button, .anvil-role-workspace-primary,
+                             .anvil-role-workspace-danger, .anvil-role-inventory-row-action,
+                             .anvil-role-inventory-remove-action) {
+  background: #fff;
+  border: 1px solid #cddbe2;
+  border-radius: 8px;
+  box-shadow: none;
+  color: #234551;
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.inventory-workspace .anvil-role-workspace-primary > .btn,
+.inventory-workspace .btn.anvil-role-workspace-primary {
+  background: #124b55;
+  border-color: #124b55;
+  color: #fff;
+}
+
+.inventory-workspace :is(.anvil-role-workspace-danger, .anvil-role-inventory-remove-action) > .btn,
+.inventory-workspace .btn:is(.anvil-role-workspace-danger, .anvil-role-inventory-remove-action) {
+  color: #9b3535;
+}
+
+.inventory-workspace :is(.anvil-role-inventory-row-action, .anvil-role-inventory-remove-action) > .btn,
+.inventory-workspace .btn:is(.anvil-role-inventory-row-action, .anvil-role-inventory-remove-action) {
+  width: 40px;
+  min-width: 40px;
+  padding-inline: 0 !important;
+}
+
+.inventory-workspace .anvil-role-inventory-row-actions .anvil-button {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.inventory-workspace :is(.anvil-role-workspace-button, .anvil-role-workspace-primary,
+                        .anvil-role-workspace-danger, .anvil-role-inventory-row-action,
+                        .anvil-role-inventory-remove-action) .btn:hover,
+.inventory-workspace .btn:is(.anvil-role-workspace-button, .anvil-role-workspace-primary,
+                             .anvil-role-workspace-danger, .anvil-role-inventory-row-action,
+                             .anvil-role-inventory-remove-action):hover {
+  filter: brightness(.94);
+}
