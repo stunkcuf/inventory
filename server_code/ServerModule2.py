@@ -6,7 +6,7 @@ import anvil.tables.query as q
 import io
 import json
 from hmac import compare_digest
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 import re
 from collections import Counter
 from datetime import datetime
@@ -1151,6 +1151,25 @@ def process_excel_import(file, import_mode='full'):
     }
 
 # --- 4. SHOPPING & HISTORY ---
+def shopping_ordering_source(item_link):
+  """Derive the ordering source from the product URL without opening it."""
+  url = (item_link or '').strip()
+  if not url:
+    return 'No ordering link', None
+  if '://' not in url and not url.startswith(('/', '#')):
+    url = 'https://' + url
+  try:
+    parsed = urlsplit(url)
+    host = (parsed.hostname or '').rstrip('.')
+  except ValueError:
+    return 'No ordering link', None
+  if parsed.scheme not in ('http', 'https') or '.' not in host or parsed.username is not None:
+    return 'No ordering link', None
+  if host == 'a.co' or host == 'amzn.to' or host == 'amazon.com' or host.endswith('.amazon.com'):
+    return 'Amazon', url
+  return host.removeprefix('www.'), url
+
+
 @anvil.server.callable
 def get_shopping_list():
   """
@@ -1177,7 +1196,7 @@ def get_shopping_list():
 
     if oh < ma:
       price = (info.get('Price') or 0) if info else 0
-      item_link = info.get('Item_Link') if info else None
+      supplier, item_link = shopping_ordering_source(info.get('Item_Link') if info else None)
       ordered = bool(info.get('Ordered')) if info else False
 
       if len(items) < 3:
@@ -1188,7 +1207,8 @@ def get_shopping_list():
         'On_Hand': oh, 
         'Minimum_Amt': ma,
         'Category': cat, 
-        'Source': cat, 
+        'Source': cat,
+        'Supplier': supplier,
         'Price': price,
         'Item_Link': item_link, 
         'Ordered': ordered

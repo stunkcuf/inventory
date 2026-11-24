@@ -29,7 +29,7 @@ class OrderFillForm(OrderFillFormTemplate):
       self.label_summary.text = "No matching orders."
 
     for order in orders:
-      card = LinearPanel(role="outlined-card")
+      card = LinearPanel(role="workspace-surface")
       card.add_component(Label(text=order['fulfillment_status'] or "Status unavailable", bold=True))
       if order['items_json']:
         card.add_component(Label(text=order['items_json']))
