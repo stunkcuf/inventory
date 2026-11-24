@@ -1,5 +1,6 @@
 from ._anvil_designer import AdminFormTemplate
 from anvil import *
+from anvil.js import await_promise, window
 import anvil.users
 import anvil.server
 import anvil.tables as tables
@@ -9,6 +10,37 @@ from anvil.tables import app_tables
 class AdminForm(AdminFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
+
+  def machform_integration_click(self, **event_args):
+    try:
+      settings = anvil.server.call('get_machform_webhook_settings')
+    except Exception:
+      Notification("Unable to load MachForm settings.", style="danger").show()
+      return
+
+    panel = LinearPanel()
+    panel.add_component(Label(text="In MachForm, open Notifications → Send Form Data to Another Website. "
+                                   "Paste the URL for that form and send the submission fields. "
+                                   "Anvil saves them in the MachForm inbox."))
+    panel.add_component(Label(text="The MachForm admin must add the webhook credential "
+                                   "as the X-MachForm-Token header or webhook_token POST field."))
+    if not settings['enabled']:
+      panel.add_component(Label(text="Inbox disabled. Set machform_webhook_secret in Anvil App Secrets."))
+
+    for form_id, url in settings['urls']:
+      button = Button(text=f"Copy URL for form {form_id}", icon="fa:clipboard")
+
+      def copy_url(url=url, **event_args):
+        try:
+          await_promise(window.navigator.clipboard.writeText(url))
+          Notification("Webhook URL copied.", style="success").show()
+        except Exception:
+          alert(TextBox(text=url), title="Copy webhook URL")
+
+      button.set_event_handler('click', copy_url)
+      panel.add_component(button)
+
+    alert(panel, title="MachForm Integration", large=True)
 
   def file_loader_1_change(self, file, **event_args):
     """Import Excel file with chunked import options"""
