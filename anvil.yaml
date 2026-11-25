@@ -676,6 +676,8 @@ db_schema:
       client_hidden: null
       name: role
       type: string
+    - name: approval_status
+      type: string
     indexes: []
     server: full
     title: Users

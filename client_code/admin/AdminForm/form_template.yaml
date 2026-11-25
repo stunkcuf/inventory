@@ -52,5 +52,20 @@ components:
   name: audit_panel
   properties: {role: inventory-admin-card}
   type: LinearPanel
+- components:
+  - name: users_heading
+    properties: {bold: true, font_size: 18, text: Users}
+    type: Label
+  - name: users_description
+    properties: {text: Review new sign-ups and choose who can sign in.}
+    type: Label
+  - event_bindings: {click: user_approvals_click}
+    name: link_user_approvals
+    properties: {icon: 'fa:user-plus', text: User Approvals}
+    type: Link
+  layout_properties: {grid_position: 'USERSR,ACCESS'}
+  name: users_panel
+  properties: {role: inventory-admin-card}
+  type: LinearPanel
 container: {type: ColumnPanel}
 is_package: true
