@@ -7,6 +7,7 @@ from .StockCountsForm import StockCountsForm
 from .ReceivingForm import ReceivingForm
 from .MachFormInbox import MachFormInbox
 from ..admin.AdminForm import AdminForm
+from ..admin.UserApprovalsForm import UserApprovalsForm
 from ..admin.AuditViewer import AuditViewer
 from .SummaryForm import SummaryForm
 from .OrderHistoryForm import OrderHistoryForm
@@ -108,6 +109,9 @@ class MainForm(MainFormTemplate):
   @handle("link_admin", "click")
   def link_admin_click(self, **event_args):
     self.show_admin_page(AdminForm, self.link_admin, "Admin")
+
+  def show_user_approvals(self):
+    self.show_admin_page(UserApprovalsForm, self.link_admin, "User Approvals")
 
   def show_audit_logs(self):
     self.show_admin_page(AuditViewer, self.link_admin)
