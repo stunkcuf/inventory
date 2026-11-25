@@ -10,6 +10,12 @@ from anvil.tables import app_tables
 class AdminForm(AdminFormTemplate):
   def __init__(self, **properties):
     self.init_components(**properties)
+    try:
+      pending = anvil.server.call('get_pending_signup_count')
+      if pending:
+        self.link_user_approvals.text = f"User Approvals ({pending})"
+    except Exception as error:
+      print(f"Could not load pending user approval count: {error}")
 
   def machform_integration_click(self, **event_args):
     try:
@@ -179,3 +185,6 @@ class AdminForm(AdminFormTemplate):
       alert(f"Could not save the schedule: {error}")
       return
     Notification(f"Stock counts are due every {interval.selected_value} days.", style='success').show()
+
+  def user_approvals_click(self, **event_args):
+    get_open_form().show_user_approvals()

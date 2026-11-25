@@ -1866,6 +1866,72 @@ def require_admin():
     raise Exception("Admin access required for this action")
 
 
+def require_user_approval_admin():
+  user = anvil.users.get_user()
+  if user is None or not user['enabled'] or user.get('role') != 'admin':
+    raise PermissionError("An active admin account is required.")
+  return user
+
+
+def approval_requests(status):
+  return app_tables.users.search(
+    tables.order_by('signed_up', ascending=False),
+    enabled=q.any_of(False, None), approval_status=status,
+  )
+
+
+@anvil.server.callable
+def get_pending_signup_count():
+  require_user_approval_admin()
+  return len(approval_requests(None))
+
+
+@anvil.server.callable
+def list_signup_requests(view='pending', page=0):
+  require_user_approval_admin()
+  if view not in ('pending', 'declined'):
+    raise ValueError("Choose Pending or Declined.")
+  if type(page) is not int or page < 0:
+    raise ValueError("Invalid page.")
+  rows = approval_requests(None if view == 'pending' else 'Declined')
+  page_size = 25
+  total = len(rows)
+  page = min(page, max(0, (total - 1) // page_size))
+  return {
+    'page': page, 'page_size': page_size, 'total': total,
+    'requests': [
+      {'id': row.get_id(), 'email': row['email'], 'signed_up': row['signed_up'],
+       'confirmed_email': bool(row['confirmed_email'])}
+      for row in islice(rows, page * page_size, (page + 1) * page_size)
+    ],
+  }
+
+
+@anvil.server.callable
+@tables.in_transaction
+def review_signup_request(user_id, approve, role=None, view='pending'):
+  admin = require_user_approval_admin()
+  if type(approve) is not bool or view not in ('pending', 'declined'):
+    raise ValueError("Choose Approve or Decline.")
+  if approve and role not in ('staff', 'admin'):
+    raise ValueError("Select Staff or Admin.")
+
+  user = app_tables.users.get_by_id(user_id)
+  expected = None if view == 'pending' else 'Declined'
+  if user is None or user.get_id() == admin.get_id():
+    raise ValueError("This account cannot be reviewed.")
+  if user['enabled'] or user['approval_status'] != expected:
+    raise ValueError("This request already changed. Refresh User Approvals.")
+
+  if approve:
+    user.update(enabled=True, role=role, approval_status='Approved')
+  else:
+    user.update(enabled=False, approval_status='Declined')
+  log_audit(action='UPDATE', table_name='users', item_name=user['email'],
+            old_value=expected or 'Pending', new_value='Approved' if approve else 'Declined',
+            details=f"Approved with role {role}" if approve else "Sign-up declined")
+
+
 @anvil.server.callable
 def update_order_fulfillment(order_id, new_status, notes):
   """
