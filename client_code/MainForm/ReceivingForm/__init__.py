@@ -1,5 +1,5 @@
 from ._anvil_designer import ReceivingFormTemplate
-from anvil import Button, DropDown, FlowPanel, Label, LinearPanel, Notification, TextBox, alert
+from anvil import Button, DropDown, FlowPanel, Label, LinearPanel, Notification, TextBox, alert, get_open_form
 import anvil.server
 
 
@@ -73,4 +73,5 @@ class ReceivingForm(ReceivingFormTemplate):
       message = "Receipt recorded and stock updated." if saved else "That delivery was already recorded."
       Notification(message, style='success' if saved else 'info').show()
       self.load_orders()
+      get_open_form().refresh_task_counts()
     return record_receipt

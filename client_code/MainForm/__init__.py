@@ -37,6 +37,24 @@ class MainForm(MainFormTemplate):
     self.navbar_links.visible = True
     self.link_logout.visible = True
     self.go_to_inventory()
+    self.refresh_task_counts()
+    self.task_count_timer.interval = 120
+
+  @handle("task_count_timer", "tick")
+  def refresh_task_counts(self, **event_args):
+    try:
+      counts = anvil.server.call('get_inventory_task_counts')
+    except Exception as error:
+      print(f"Could not refresh inventory task counts: {error}")
+      return
+
+    for link, key, label, idle_icon in (
+        (self.link_stock_counts, 'stock_counts', 'Stock Counts', 'fa:check-square-o'),
+        (self.order_filling, 'orders', 'Orders', 'fa:inbox'),
+        (self.link_receiving, 'receiving', 'Receiving', 'fa:truck')):
+      count = counts[key]
+      link.text = f"{label} ({count})" if count else label
+      link.icon = 'fa:bell' if count else idle_icon
 
   def show_page(self, form_type, link, heading=None):
     form = form_type()
@@ -102,4 +120,5 @@ class MainForm(MainFormTemplate):
   def link_logout_click(self, **event_args):
     if confirm("Log out of Inventory Management?"):
       anvil.users.logout()
+      self.task_count_timer.interval = 0
       anvil.open_form('MainForm')

@@ -1451,6 +1451,26 @@ def get_receiving_orders():
 
 
 @anvil.server.callable
+def get_inventory_task_counts():
+  user = anvil.users.get_user()
+  if user is None:
+    raise PermissionError("Sign in to view inventory task counts.")
+
+  stock_items = get_stock_counts()['items']
+  open_orders = app_tables.machform_orders.search(fulfillment_status=q.any_of('Pending', 'Partial'))
+  open_pos = set()
+  if (user.get('role') or 'staff') in ('admin', 'staff'):
+    for line in app_tables.purchase_order_lines.search(canceled=False):
+      if line['received_quantity'] < line['ordered_quantity']:
+        open_pos.add(line['po_number'])
+  return {
+    'stock_counts': sum(item['due'] and not item['pending'] for item in stock_items),
+    'orders': len(open_orders),
+    'receiving': len(open_pos),
+  }
+
+
+@anvil.server.callable
 @tables.in_transaction
 def record_po_receipt(line_id, quantity, delivery_reference):
   user = require_receiving_user()

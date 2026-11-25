@@ -40,6 +40,9 @@ components:
   name: content_panel
   properties: {}
   type: ColumnPanel
+- name: task_count_timer
+  properties: {interval: 0}
+  type: Timer
 container:
   properties: {html: '@theme:standard-page.html'}
   type: HtmlTemplate

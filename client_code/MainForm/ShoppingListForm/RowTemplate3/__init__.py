@@ -86,11 +86,12 @@ class RowTemplate3(RowTemplate3Template):
     self.item['Ordered'] = new_status
     self.item['PO_Number'] = po_number
     self.update_row_status()
-    from anvil import get_open_form
-    for component in get_open_form().content_panel.get_components():
+    main_form = get_open_form()
+    for component in main_form.content_panel.get_components():
       if hasattr(component, 'order_status_changed'):
         component.order_status_changed(self.item)
         break
+    main_form.refresh_task_counts()
 
 
   def add_purchase_link_click(self, **event_args):
